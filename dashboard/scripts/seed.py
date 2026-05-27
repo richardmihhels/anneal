@@ -36,6 +36,7 @@ from shared.models import (  # noqa: E402
     OptimizationRun,
     Trace,  # noqa: E402
 )
+from worker.digest import DigestPR, compose_weekly_digest  # noqa: E402
 from worker.models import RunEvent  # noqa: E402
 
 
@@ -391,6 +392,65 @@ def _make_alarms() -> list[Alarm]:
     ]
 
 
+def _make_digests(
+    runs: list[OptimizationRun],
+    events: list[RunEvent],
+    clusters: list[Any],
+    proposed_changes: list[Any],
+    eval_results: list[EvalResult],
+    alarms: list[Alarm],
+) -> list[Any]:
+    digests = []
+    events_by_run = {run.id: [event for event in events if event.run_id == run.id] for run in runs}
+    clusters_by_id = {cluster.id: cluster for cluster in clusters}
+    changes_by_run = {
+        run.id: [change for change in proposed_changes if change.optimization_run_id == run.id]
+        for run in runs
+    }
+    evals_by_run = {
+        run.id: [result for result in eval_results if result.optimization_run_id == run.id]
+        for run in runs
+    }
+
+    previous: list[EvalResult] = []
+    for run in sorted(runs, key=lambda r: r.created_at):
+        run_clusters = [clusters_by_id[cid] for cid in run.cluster_ids if cid in clusters_by_id]
+        run_changes = changes_by_run[run.id]
+        run_evals = evals_by_run[run.id]
+        week_start = run.created_at - timedelta(days=7)
+        week_alarms = [
+            alarm
+            for alarm in alarms
+            if alarm.agent_id == run.agent_id and week_start <= alarm.first_detected <= run.created_at
+        ]
+        prs = [
+            DigestPR(
+                url=f"https://github.com/acme/agent/pull/{i + 1}",
+                title=f"Anneal prompt update for {change.target}",
+                change_id=change.id,
+            )
+            for i, change in enumerate(run_changes)
+        ]
+        digest = compose_weekly_digest(
+            run=run,
+            events=events_by_run[run.id],
+            clusters=run_clusters,
+            proposed_changes=run_changes,
+            eval_results=run_evals,
+            previous_eval_results=previous[-25:],
+            alarms=week_alarms,
+            prs=prs,
+        )
+        digests.append(
+            digest.model_copy(
+                update={"id": f"digest-{run.id[:12]}", "generated_at": run.created_at}
+            )
+        )
+        previous.extend(run_evals)
+
+    return digests
+
+
 def main() -> None:
     scenarios = [
         ("good", 42, 1.0),
@@ -422,6 +482,16 @@ def main() -> None:
         all_changes.extend(r["proposed_changes"])
         all_evals.extend(r["eval_results"])
 
+    alarms = _make_alarms()
+    digests = _make_digests(
+        runs=all_runs,
+        events=all_events,
+        clusters=all_clusters,
+        proposed_changes=all_changes,
+        eval_results=all_evals,
+        alarms=alarms,
+    )
+
     data = _serialize(
         {
             "runs": all_runs,
@@ -429,7 +499,8 @@ def main() -> None:
             "clusters": all_clusters,
             "proposed_changes": all_changes,
             "eval_results": all_evals,
-            "alarms": _make_alarms(),
+            "alarms": alarms,
+            "weekly_digests": digests,
         }
     )
 
@@ -440,6 +511,7 @@ def main() -> None:
     print(f"\nWrote {out}")
     print(f"  {len(all_runs)} runs  {len(all_events)} events  {len(all_clusters)} clusters")
     print(f"  {len(all_changes)} proposed_changes  {len(all_evals)} eval_results")
+    print(f"  {len(digests)} weekly_digests")
 
 
 if __name__ == "__main__":

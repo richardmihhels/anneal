@@ -70,6 +70,24 @@ export interface Alarm {
   notified: boolean;
 }
 
+export interface WeeklyDigest {
+  id: string;
+  optimization_run_id: string;
+  organization_id: string;
+  agent_id: string;
+  week_start: string;
+  week_end: string;
+  generated_at: string;
+  subject: string;
+  summary: string;
+  pr_shipped: boolean;
+  pr_urls: string[];
+  health_direction: string;
+  alarm_ids: string[];
+  email_body: string;
+  page_body: string;
+}
+
 export interface SeedData {
   runs: OptimizationRun[];
   events: RunEvent[];
@@ -77,6 +95,7 @@ export interface SeedData {
   proposed_changes: ProposedChange[];
   eval_results: EvalResult[];
   alarms?: Alarm[];
+  weekly_digests?: WeeklyDigest[];
 }
 
 export interface CategoryWeekPoint {

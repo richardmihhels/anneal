@@ -1,0 +1,88 @@
+{
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "optimization_run_id": {
+      "title": "Optimization Run Id",
+      "type": "string"
+    },
+    "organization_id": {
+      "default": "org_demo",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "agent_id": {
+      "title": "Agent Id",
+      "type": "string"
+    },
+    "week_start": {
+      "format": "date-time",
+      "title": "Week Start",
+      "type": "string"
+    },
+    "week_end": {
+      "format": "date-time",
+      "title": "Week End",
+      "type": "string"
+    },
+    "generated_at": {
+      "format": "date-time",
+      "title": "Generated At",
+      "type": "string"
+    },
+    "subject": {
+      "title": "Subject",
+      "type": "string"
+    },
+    "summary": {
+      "title": "Summary",
+      "type": "string"
+    },
+    "pr_shipped": {
+      "title": "Pr Shipped",
+      "type": "boolean"
+    },
+    "pr_urls": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Pr Urls",
+      "type": "array"
+    },
+    "health_direction": {
+      "title": "Health Direction",
+      "type": "string"
+    },
+    "alarm_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Alarm Ids",
+      "type": "array"
+    },
+    "email_body": {
+      "title": "Email Body",
+      "type": "string"
+    },
+    "page_body": {
+      "title": "Page Body",
+      "type": "string"
+    }
+  },
+  "required": [
+    "optimization_run_id",
+    "agent_id",
+    "week_start",
+    "week_end",
+    "subject",
+    "summary",
+    "pr_shipped",
+    "health_direction",
+    "email_body",
+    "page_body"
+  ],
+  "title": "WeeklyDigest",
+  "type": "object"
+}

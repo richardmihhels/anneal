@@ -6,6 +6,7 @@ from shared.models import (
     ProposedChange,
     Span,
     Trace,
+    WeeklyDigest,
 )
 
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     "ProposedChange",
     "Span",
     "Trace",
+    "WeeklyDigest",
 ]

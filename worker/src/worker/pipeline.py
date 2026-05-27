@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import timedelta
 from typing import Any
 
 from core.clustering.pipeline import ClusterPipeline
@@ -12,8 +13,9 @@ from core.eval.split import split
 from core.github.client import GitHubGateway
 from core.github.publisher import PRPublisher
 from core.optimizer.engine import Optimizer
-from shared.models import EvalResult, OptimizationRun, Trace
+from shared.models import EvalResult, FailureCluster, OptimizationRun, ProposedChange, Trace
 
+from worker.digest import DigestNotifier, DigestPR, compose_weekly_digest
 from worker.models import CustomerConfig, PipelineComponents, RunEvent
 from worker.store import RunStore
 
@@ -30,6 +32,7 @@ async def run_optimization_cycle(
     store: RunStore,
     gateway: GitHubGateway,
     components: PipelineComponents,
+    digest_notifier: DigestNotifier | None = None,
 ) -> OptimizationRun:
     """Run one full optimization cycle for a customer.
 
@@ -65,6 +68,15 @@ async def run_optimization_cycle(
         run = run.model_copy(update={"status": "completed"})
         await store.update_run(run)
         await _emit(store, run.id, "done", "completed", "Cycle skipped — insufficient traces.")
+        await _send_weekly_digest(
+            store,
+            run,
+            clusters=[],
+            proposed_changes=[],
+            eval_results=[],
+            prs=[],
+            digest_notifier=digest_notifier,
+        )
         return run
 
     # ── clustering ────────────────────────────────────────────────────────────
@@ -100,6 +112,15 @@ async def run_optimization_cycle(
         run = run.model_copy(update={"status": "completed"})
         await store.update_run(run)
         await _emit(store, run.id, "done", "completed", "No failure clusters — agent is performing well.")
+        await _send_weekly_digest(
+            store,
+            run,
+            clusters=[],
+            proposed_changes=[],
+            eval_results=[],
+            prs=[],
+            digest_notifier=digest_notifier,
+        )
         return run
 
     # ── optimization ──────────────────────────────────────────────────────────
@@ -224,6 +245,15 @@ async def run_optimization_cycle(
     run = run.model_copy(update={"status": "completed"})
     await store.update_run(run)
     await _emit(store, run.id, "done", "completed", "Optimization cycle complete.")
+    await _send_weekly_digest(
+        store,
+        run,
+        clusters=clusters,
+        proposed_changes=list(opt_result.proposed_changes),
+        eval_results=eval_results_to_save,
+        prs=[DigestPR(url=pr.url, title=pr.title, change_id=pr.change_id) for pr in pub_result.opened],
+        digest_notifier=digest_notifier,
+    )
     return run
 
 
@@ -266,3 +296,39 @@ async def _fail(
         metadata={"error": str(exc), "error_type": type(exc).__name__},
     )
     return run
+
+
+async def _send_weekly_digest(
+    store: RunStore,
+    run: OptimizationRun,
+    *,
+    clusters: list[FailureCluster],
+    proposed_changes: list[ProposedChange],
+    eval_results: list[EvalResult],
+    prs: list[DigestPR],
+    digest_notifier: DigestNotifier | None,
+) -> None:
+    existing = await store.get_weekly_digest_for_run(run.id)
+    if existing is not None:
+        return
+
+    week_end = run.created_at
+    week_start = week_end - timedelta(days=7)
+    events = await store.list_events(run.id)
+    previous_eval_results = await store.list_eval_results(
+        run.agent_id, run.created_at, limit=25
+    )
+    alarms = await store.list_alarms(run.organization_id, run.agent_id, week_start, week_end)
+    digest = compose_weekly_digest(
+        run=run,
+        events=events,
+        clusters=clusters,
+        proposed_changes=proposed_changes,
+        eval_results=eval_results,
+        previous_eval_results=previous_eval_results,
+        alarms=alarms,
+        prs=prs,
+    )
+    await store.save_weekly_digest(digest)
+    if digest_notifier is not None:
+        digest_notifier.send(digest)

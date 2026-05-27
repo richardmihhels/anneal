@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getRun } from "@/lib/data";
+import { getRun, getWeeklyDigestForRun } from "@/lib/data";
 import { RunStatusBadge } from "@/components/run-status-badge";
 import { EvalDelta } from "@/components/eval-delta";
 import { EmptyState } from "@/components/empty-state";
@@ -41,6 +41,7 @@ export default async function RunDetailPage({ params }: PageProps) {
   const { id } = await params;
   const run = getRun(id, session.organizationId);
   if (!run) notFound();
+  const digest = getWeeklyDigestForRun(id, session.organizationId);
 
   const isFailed = run.status === "failed";
   const isSkipped =
@@ -78,6 +79,14 @@ export default async function RunDetailPage({ params }: PageProps) {
           <RunStatusBadge status={run.status} />
           <span className="font-mono text-sm text-zinc-500">{run.id}</span>
           <span className="text-xs text-zinc-700">{formatDate(run.created_at)}</span>
+          {digest && (
+            <Link
+              href={`/digests/${digest.id}`}
+              className="text-xs text-zinc-500 underline underline-offset-2 transition-colors hover:text-zinc-300"
+            >
+              Weekly digest
+            </Link>
+          )}
         </div>
       </div>
 

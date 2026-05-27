@@ -8,15 +8,26 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from shared.models import (  # noqa: E402
+    Alarm,
     EvalResult,
     FailureCluster,
     OptimizationRun,
     ProposedChange,
     Span,
     Trace,
+    WeeklyDigest,
 )
 
-MODELS = [Trace, Span, FailureCluster, OptimizationRun, ProposedChange, EvalResult]
+MODELS = [
+    Trace,
+    Span,
+    FailureCluster,
+    OptimizationRun,
+    ProposedChange,
+    EvalResult,
+    Alarm,
+    WeeklyDigest,
+]
 SCHEMA_DIR = Path(__file__).parent / "schemas"
 SCHEMA_DIR.mkdir(exist_ok=True)
 

@@ -38,6 +38,10 @@ test("dashboard happy path", async ({ page }) => {
   await expect(page.getByText("Pipeline timeline")).toBeVisible();
   await expect(page.getByText("Candidates tried")).toBeVisible();
   await expect(page.getByText(/Why shipped/).first()).toBeVisible();
+  await page.getByRole("link", { name: "Weekly digest" }).click();
+  await expect(page).toHaveURL(/\/digests\//);
+  await expect(page.getByRole("heading", { name: "Weekly digest" })).toBeVisible();
+  await expect(page.getByText("Shareable digest")).toBeVisible();
 
   await page.locator("nav").getByRole("link", { name: "Runs" }).click();
   const silentRun = page

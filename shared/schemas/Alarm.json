@@ -1,0 +1,62 @@
+{
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "organization_id": {
+      "default": "org_demo",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "agent_id": {
+      "title": "Agent Id",
+      "type": "string"
+    },
+    "category": {
+      "title": "Category",
+      "type": "string"
+    },
+    "baseline_rate": {
+      "title": "Baseline Rate",
+      "type": "number"
+    },
+    "current_rate": {
+      "title": "Current Rate",
+      "type": "number"
+    },
+    "window_hours": {
+      "title": "Window Hours",
+      "type": "integer"
+    },
+    "affected_trace_count": {
+      "title": "Affected Trace Count",
+      "type": "integer"
+    },
+    "first_detected": {
+      "format": "date-time",
+      "title": "First Detected",
+      "type": "string"
+    },
+    "cause_hypothesis": {
+      "title": "Cause Hypothesis",
+      "type": "string"
+    },
+    "notified": {
+      "default": false,
+      "title": "Notified",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "agent_id",
+    "category",
+    "baseline_rate",
+    "current_rate",
+    "window_hours",
+    "affected_trace_count",
+    "cause_hypothesis"
+  ],
+  "title": "Alarm",
+  "type": "object"
+}

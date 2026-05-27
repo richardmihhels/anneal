@@ -7,7 +7,8 @@ import asyncio
 from core.eval.runner import AgentConfig
 from core.github.client import FakeGitHubGateway
 from core.testing.generator import generate_dataset
-from shared.models import Trace
+from shared.models import Alarm, Trace
+from worker.digest import FakeDigestNotifier
 from worker.models import CustomerConfig, PipelineComponents, fake_components
 from worker.pipeline import MIN_TRACES_FOR_OPTIMIZATION, run_optimization_cycle
 from worker.store import FakeRunStore
@@ -53,6 +54,13 @@ class _KeywordJudge:
         return 1.0 if "resolved" in context.lower() else 0.0
 
 
+class _AlwaysPassRunner:
+    """Both baseline and candidate succeed — delta=0, nothing ships."""
+
+    def run(self, trace: Trace, config: AgentConfig) -> str:
+        return "issue resolved successfully."
+
+
 def _good_components() -> PipelineComponents:
     """Components where mutations always beat the baseline in eval."""
     from core.clustering.embedder import TFIDFEmbedder
@@ -66,6 +74,23 @@ def _good_components() -> PipelineComponents:
         labeler=FakeLabeler(),
         mutator=FakeMutator(),
         eval_runner=_MutationAwareRunner(),  # type: ignore[arg-type]
+        eval_judge=_KeywordJudge(),  # type: ignore[arg-type]
+        mutation_budget=1,
+    )
+
+
+def _silent_components() -> PipelineComponents:
+    from core.clustering.embedder import TFIDFEmbedder
+    from core.clustering.judge import FakeJudge
+    from core.clustering.labeler import FakeLabeler
+    from core.optimizer.mutator import FakeMutator
+
+    return PipelineComponents(
+        embedder=TFIDFEmbedder(),
+        clustering_judge=FakeJudge(),
+        labeler=FakeLabeler(),
+        mutator=FakeMutator(),
+        eval_runner=_AlwaysPassRunner(),  # type: ignore[arg-type]
         eval_judge=_KeywordJudge(),  # type: ignore[arg-type]
         mutation_budget=1,
     )
@@ -151,6 +176,113 @@ def test_full_pipeline_opens_prs_when_improvements_found() -> None:
 
     # Some PRs should have been opened
     assert len(gateway.opened_prs) > 0
+
+
+def test_weekly_digest_sent_once_for_pr_shipped_cycle() -> None:
+    traces = generate_dataset(n=150, seed=42)
+    customer = _make_customer()
+    store = FakeRunStore()
+    gateway = _make_gateway(customer, traces)
+    notifier = FakeDigestNotifier()
+
+    run = asyncio.run(
+        run_optimization_cycle(
+            customer,
+            traces,
+            store,
+            gateway,
+            _good_components(),
+            digest_notifier=notifier,
+        )
+    )
+
+    assert len(notifier.sent) == 1
+    assert len(store.all_weekly_digests) == 1
+    digest = notifier.sent[0]
+    assert digest.optimization_run_id == run.id
+    assert digest.pr_shipped is True
+    assert "Anneal shipped" in digest.email_body
+    assert "PRs" in digest.page_body
+    assert digest.email_body == digest.page_body
+
+    asyncio.run(
+        run_optimization_cycle(
+            customer,
+            traces[:5],
+            store,
+            gateway,
+            fake_components(),
+            digest_notifier=notifier,
+        )
+    )
+    assert len(notifier.sent) == 2
+
+
+def test_weekly_digest_for_silent_cycle_reads_as_safe_outcome() -> None:
+    traces = generate_dataset(n=150, seed=17)
+    customer = _make_customer()
+    store = FakeRunStore()
+    gateway = _make_gateway(customer, traces)
+    notifier = FakeDigestNotifier()
+
+    run = asyncio.run(
+        run_optimization_cycle(
+            customer,
+            traces,
+            store,
+            gateway,
+            _silent_components(),
+            digest_notifier=notifier,
+        )
+    )
+
+    assert run.status == "completed"
+    assert gateway.opened_prs == []
+    assert len(notifier.sent) == 1
+    digest = notifier.sent[0]
+    assert digest.pr_shipped is False
+    assert "No PR shipped this week" in digest.email_body
+    assert "safe outcome" in digest.email_body
+    assert "Failure clusters" in digest.email_body
+    assert "No regression alarms fired this week." in digest.email_body
+    assert "sorry" not in digest.email_body.lower()
+    assert digest.email_body == digest.page_body
+
+
+def test_weekly_digest_includes_alarm_fired_during_week() -> None:
+    traces = generate_dataset(n=150, seed=18)
+    customer = _make_customer()
+    store = FakeRunStore()
+    gateway = _make_gateway(customer, traces)
+    notifier = FakeDigestNotifier()
+
+    alarm = Alarm(
+        organization_id=customer.organization_id,
+        agent_id=customer.agent_id,
+        category="policy_violation",
+        baseline_rate=0.04,
+        current_rate=0.19,
+        window_hours=24,
+        affected_trace_count=9,
+        cause_hypothesis="Hypothesis (AI-generated — treat as a guess): refund requests changed.",
+    )
+    asyncio.run(store.save_alarm(alarm))
+
+    asyncio.run(
+        run_optimization_cycle(
+            customer,
+            traces,
+            store,
+            gateway,
+            _silent_components(),
+            digest_notifier=notifier,
+        )
+    )
+
+    digest = notifier.sent[0]
+    assert digest.alarm_ids == [alarm.id]
+    assert "policy_violation" in digest.email_body
+    assert "9 conversations affected" in digest.email_body
 
 
 def test_full_pipeline_proposed_change_ids_persisted() -> None:

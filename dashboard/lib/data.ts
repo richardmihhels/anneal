@@ -14,6 +14,7 @@ import type {
   RunEvent,
   RunSummary,
   SeedData,
+  WeeklyDigest,
 } from "./types";
 
 const FALLBACK_ORG_ID = "org_demo";
@@ -51,6 +52,9 @@ function scopedData(data: SeedData, organizationId: string): SeedData {
     ),
     alarms: (data.alarms ?? []).filter(
       (alarm) => alarm.organization_id === organizationId,
+    ),
+    weekly_digests: (data.weekly_digests ?? []).filter(
+      (digest) => digest.organization_id === organizationId,
     ),
   };
 }
@@ -177,6 +181,25 @@ export function getRun(id: string, organizationId: string): RunDetail | null {
   const data = scopedData(getData(), organizationId);
   const run = data.runs.find((candidate) => candidate.id === id);
   return run ? detailForRun(run, data) : null;
+}
+
+export function getWeeklyDigest(
+  id: string,
+  organizationId: string,
+): WeeklyDigest | null {
+  const data = scopedData(getData(), organizationId);
+  return data.weekly_digests?.find((digest) => digest.id === id) ?? null;
+}
+
+export function getWeeklyDigestForRun(
+  runId: string,
+  organizationId: string,
+): WeeklyDigest | null {
+  const data = scopedData(getData(), organizationId);
+  return (
+    data.weekly_digests?.find((digest) => digest.optimization_run_id === runId) ??
+    null
+  );
 }
 
 export function getOverviewStats(organizationId: string): {

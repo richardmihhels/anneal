@@ -95,3 +95,21 @@ class Alarm(BaseModel):
     first_detected: datetime = Field(default_factory=_now)
     cause_hypothesis: str
     notified: bool = False
+
+
+class WeeklyDigest(BaseModel):
+    id: str = Field(default_factory=_uuid)
+    optimization_run_id: str
+    organization_id: str = "org_demo"
+    agent_id: str
+    week_start: datetime
+    week_end: datetime
+    generated_at: datetime = Field(default_factory=_now)
+    subject: str
+    summary: str
+    pr_shipped: bool
+    pr_urls: list[str] = Field(default_factory=list)
+    health_direction: str
+    alarm_ids: list[str] = Field(default_factory=list)
+    email_body: str
+    page_body: str
