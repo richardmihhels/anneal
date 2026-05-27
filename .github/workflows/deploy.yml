@@ -1,0 +1,251 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options: [dev, prod]
+
+permissions:
+  id-token: write  # OIDC login to Azure
+  contents: read
+
+# ── Shared env ────────────────────────────────────────────────────────────────
+
+env:
+  TF_VERSION: "1.9.8"
+  REGISTRY: ${{ secrets.ACR_LOGIN_SERVER }}
+
+jobs:
+  # ── Build & push images ─────────────────────────────────────────────────────
+
+  build:
+    name: Build images
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute image tag
+        id: tag
+        run: echo "tag=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Log in to ACR
+        run: az acr login --name "${{ secrets.ACR_NAME }}"
+
+      - name: Build and push core
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: core/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/anneal-core:${{ steps.tag.outputs.tag }}
+            ${{ env.REGISTRY }}/anneal-core:latest
+
+      - name: Build and push worker
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: worker/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/anneal-worker:${{ steps.tag.outputs.tag }}
+            ${{ env.REGISTRY }}/anneal-worker:latest
+
+      - name: Build and push dashboard
+        uses: docker/build-push-action@v6
+        with:
+          context: dashboard
+          file: dashboard/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/anneal-dashboard:${{ steps.tag.outputs.tag }}
+            ${{ env.REGISTRY }}/anneal-dashboard:latest
+
+  # ── Deploy dev (auto on push to main) ──────────────────────────────────────
+
+  deploy-dev:
+    name: Deploy → dev
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: dev
+    concurrency:
+      group: deploy-dev
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Terraform init (dev)
+        working-directory: infra
+        run: terraform init -backend-config=backends/dev.hcl -reconfigure
+
+      - name: Terraform apply (dev)
+        working-directory: infra
+        env:
+          TF_VAR_clickhouse_org_id: ${{ secrets.CLICKHOUSE_ORG_ID }}
+          TF_VAR_clickhouse_token_key: ${{ secrets.CLICKHOUSE_TOKEN_KEY }}
+          TF_VAR_clickhouse_token_secret: ${{ secrets.CLICKHOUSE_TOKEN_SECRET }}
+          TF_VAR_auth_secret: ${{ secrets.AUTH_SECRET }}
+          TF_VAR_anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          TF_VAR_openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          TF_VAR_github_app_id: ${{ secrets.GITHUB_APP_ID }}
+          TF_VAR_github_app_private_key: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
+          TF_VAR_github_webhook_secret: ${{ secrets.GITHUB_WEBHOOK_SECRET }}
+        run: |
+          terraform apply \
+            -var-file=environments/dev.tfvars \
+            -auto-approve \
+            -input=false
+
+      - name: Run migrations (PostgreSQL)
+        env:
+          POSTGRES_URL: ${{ steps.get-pg-url.outputs.value }}
+        run: |
+          PG_URL=$(az keyvault secret show \
+            --vault-name "kv-anneal-dev" \
+            --name "postgres-url" \
+            --query "value" -o tsv)
+          docker run --rm \
+            -e PGPASSWORD="" \
+            postgres:16 \
+            psql "$PG_URL" \
+            -f /dev/stdin < core/src/core/db/postgres.sql
+
+      - name: Run migrations (ClickHouse)
+        run: |
+          CH_URL=$(az keyvault secret show \
+            --vault-name "kv-anneal-dev" \
+            --name "clickhouse-url" \
+            --query "value" -o tsv)
+          CH_PASS=$(az keyvault secret show \
+            --vault-name "kv-anneal-dev" \
+            --name "clickhouse-password" \
+            --query "value" -o tsv)
+          docker run --rm clickhouse/clickhouse-client:24 \
+            --host "$(echo "$CH_URL" | sed 's|https://||;s|:.*||')" \
+            --port 8443 \
+            --secure \
+            --user default \
+            --password "$CH_PASS" \
+            --database anneal \
+            --query "$(cat core/src/core/db/clickhouse.sql)"
+
+      - name: Smoke test
+        run: |
+          CORE_URL=$(cd infra && terraform output -raw core_url)
+          DASHBOARD_URL=$(cd infra && terraform output -raw dashboard_url)
+          CORE_URL="$CORE_URL" DASHBOARD_URL="$DASHBOARD_URL" \
+            bash infra/scripts/smoke-test.sh
+
+  # ── Deploy prod (manual approval) ──────────────────────────────────────────
+
+  deploy-prod:
+    name: Deploy → prod
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod'
+    environment: prod  # GitHub environment with required reviewers
+    concurrency:
+      group: deploy-prod
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Terraform init (prod)
+        working-directory: infra
+        run: terraform init -backend-config=backends/prod.hcl -reconfigure
+
+      - name: Terraform apply (prod)
+        working-directory: infra
+        env:
+          TF_VAR_clickhouse_org_id: ${{ secrets.CLICKHOUSE_ORG_ID }}
+          TF_VAR_clickhouse_token_key: ${{ secrets.CLICKHOUSE_TOKEN_KEY }}
+          TF_VAR_clickhouse_token_secret: ${{ secrets.CLICKHOUSE_TOKEN_SECRET }}
+          TF_VAR_auth_secret: ${{ secrets.AUTH_SECRET }}
+          TF_VAR_anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          TF_VAR_openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          TF_VAR_github_app_id: ${{ secrets.GITHUB_APP_ID }}
+          TF_VAR_github_app_private_key: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
+          TF_VAR_github_webhook_secret: ${{ secrets.GITHUB_WEBHOOK_SECRET }}
+        run: |
+          terraform apply \
+            -var-file=environments/prod.tfvars \
+            -auto-approve \
+            -input=false
+
+      - name: Run migrations (PostgreSQL)
+        run: |
+          PG_URL=$(az keyvault secret show \
+            --vault-name "kv-anneal-prod" \
+            --name "postgres-url" \
+            --query "value" -o tsv)
+          docker run --rm postgres:16 \
+            psql "$PG_URL" \
+            -f /dev/stdin < core/src/core/db/postgres.sql
+
+      - name: Run migrations (ClickHouse)
+        run: |
+          CH_URL=$(az keyvault secret show \
+            --vault-name "kv-anneal-prod" \
+            --name "clickhouse-url" \
+            --query "value" -o tsv)
+          CH_PASS=$(az keyvault secret show \
+            --vault-name "kv-anneal-prod" \
+            --name "clickhouse-password" \
+            --query "value" -o tsv)
+          docker run --rm clickhouse/clickhouse-client:24 \
+            --host "$(echo "$CH_URL" | sed 's|https://||;s|:.*||')" \
+            --port 8443 \
+            --secure \
+            --user default \
+            --password "$CH_PASS" \
+            --database anneal \
+            --query "$(cat core/src/core/db/clickhouse.sql)"
+
+      - name: Smoke test
+        run: |
+          CORE_URL=$(cd infra && terraform output -raw core_url)
+          DASHBOARD_URL=$(cd infra && terraform output -raw dashboard_url)
+          CORE_URL="$CORE_URL" DASHBOARD_URL="$DASHBOARD_URL" \
+            bash infra/scripts/smoke-test.sh
