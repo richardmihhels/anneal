@@ -31,6 +31,8 @@ from core.optimizer.engine import Optimizer  # noqa: E402
 from core.optimizer.mutator import FakeMutator  # noqa: E402
 from core.testing.generator import generate_dataset  # noqa: E402
 from shared.models import (  # noqa: E402
+    Alarm,
+    EvalResult,
     OptimizationRun,
     Trace,  # noqa: E402
 )
@@ -170,12 +172,18 @@ def run_good_cycle(seed: int, days_ago: float) -> dict[str, Any]:
         _ev(run_id, "done", "completed", "Optimization cycle complete.", t0 + timedelta(seconds=53)),
     ]
 
+    # Attach optimization_run_id so the health view can group evals by run.
+    eval_results_with_run = [
+        er.model_copy(update={"optimization_run_id": run_id})
+        for er in opt_result.eval_results
+    ]
+
     return {
         "run": run,
         "events": events,
         "clusters": list(clusters),
         "proposed_changes": list(opt_result.proposed_changes),
-        "eval_results": list(opt_result.eval_results),
+        "eval_results": eval_results_with_run,
     }
 
 
@@ -255,12 +263,27 @@ def run_silent_cycle(seed: int, days_ago: float) -> dict[str, Any]:
         _ev(run_id, "done", "completed", "Optimization cycle complete.", t0 + timedelta(seconds=47)),
     ]
 
+    # Persist a baseline self-eval so the health time series has a data point even in quiet weeks.
+    harness_baseline, _ = _good_components(_AlwaysPassRunner())
+    silent_report = harness_baseline.evaluate(baseline, baseline, holdout)
+    baseline_eval = EvalResult(
+        optimization_run_id=run_id,
+        proposed_change_id=None,
+        baseline_score=silent_report.baseline_score,
+        candidate_score=silent_report.baseline_score,
+        delta=0.0,
+        p_value=1.0,
+        sample_size=silent_report.significance.sample_size,
+        passed=False,
+        judge_agreement_rate=silent_report.judge_agreement_rate,
+    )
+
     return {
         "run": run,
         "events": events,
         "clusters": list(clusters),
         "proposed_changes": [],
-        "eval_results": [],
+        "eval_results": [baseline_eval],
     }
 
 
@@ -345,6 +368,29 @@ def _serialize(obj: Any) -> Any:
     return obj
 
 
+def _make_alarms() -> list[Alarm]:
+    """Two sample alarms on the cascade-support-v1 agent."""
+    return [
+        Alarm(
+            agent_id="cascade-support-v1",
+            organization_id="org_demo",
+            category="policy_violation",
+            baseline_rate=0.06,
+            current_rate=0.28,
+            window_hours=24,
+            affected_trace_count=14,
+            first_detected=_ts(0.4),
+            cause_hypothesis=(
+                "Hypothesis (AI-generated — treat as a guess): The 'policy_violation' "
+                "failure rate rose 367% from 6.0% to 28.0%. This may indicate a recent "
+                "change in user behaviour — a higher proportion of requests are asking "
+                "for partial refunds, which the agent is incorrectly granting."
+            ),
+            notified=True,
+        ),
+    ]
+
+
 def main() -> None:
     scenarios = [
         ("good", 42, 1.0),
@@ -383,6 +429,7 @@ def main() -> None:
             "clusters": all_clusters,
             "proposed_changes": all_changes,
             "eval_results": all_evals,
+            "alarms": _make_alarms(),
         }
     )
 

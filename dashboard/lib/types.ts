@@ -44,7 +44,8 @@ export interface ProposedChange {
 
 export interface EvalResult {
   id: string;
-  proposed_change_id: string;
+  optimization_run_id?: string | null;
+  proposed_change_id?: string | null;
   run_at: string;
   baseline_score: number;
   candidate_score: number;
@@ -55,12 +56,42 @@ export interface EvalResult {
   judge_agreement_rate: number;
 }
 
+export interface Alarm {
+  id: string;
+  organization_id: string;
+  agent_id: string;
+  category: string;
+  baseline_rate: number;
+  current_rate: number;
+  window_hours: number;
+  affected_trace_count: number;
+  first_detected: string;
+  cause_hypothesis: string;
+  notified: boolean;
+}
+
 export interface SeedData {
   runs: OptimizationRun[];
   events: RunEvent[];
   clusters: FailureCluster[];
   proposed_changes: ProposedChange[];
   eval_results: EvalResult[];
+  alarms?: Alarm[];
+}
+
+export interface CategoryWeekPoint {
+  date: string;
+  category: string;
+  size: number;
+}
+
+export interface HealthEvalPoint {
+  date: string;
+  baseline_score: number | null;
+  candidate_score: number | null;
+  judge_agreement_rate: number | null;
+  prs_shipped: number;
+  run_status: RunStatus;
 }
 
 export interface ProposedChangeWithEval extends ProposedChange {

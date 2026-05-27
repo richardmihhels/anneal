@@ -1,9 +1,12 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import type {
+  Alarm,
+  CategoryWeekPoint,
   EvalResult,
   EvalScorePoint,
   GateSummary,
+  HealthEvalPoint,
   OptimizationRun,
   ProposedChange,
   ProposedChangeWithEval,
@@ -37,11 +40,18 @@ function scopedData(data: SeedData, organizationId: string): SeedData {
   return {
     runs,
     events,
-    proposed_changes: proposedChanges,
-    eval_results: data.eval_results.filter((evalResult) =>
-      changeIds.has(evalResult.proposed_change_id),
-    ),
     clusters: data.clusters.filter((cluster) => clusterIds.has(cluster.id)),
+    proposed_changes: proposedChanges,
+    eval_results: data.eval_results.filter(
+      (evalResult) =>
+        (evalResult.proposed_change_id != null &&
+          changeIds.has(evalResult.proposed_change_id)) ||
+        (evalResult.optimization_run_id != null &&
+          runIds.has(evalResult.optimization_run_id)),
+    ),
+    alarms: (data.alarms ?? []).filter(
+      (alarm) => alarm.organization_id === organizationId,
+    ),
   };
 }
 
@@ -236,5 +246,92 @@ export function getOverviewStats(organizationId: string): {
     weeklyActivity,
     evalScoreTrend,
     latestEvalScore,
+  };
+}
+
+function _normalizeCategory(description: string): string {
+  const lower = description.toLowerCase();
+  if (lower.includes("policy violation")) return "Policy violation";
+  if (lower.includes("premature escalation")) return "Premature escalation";
+  if (lower.includes("unresolved ticket")) return "Unresolved ticket";
+  if (lower.includes("scope creep")) return "Scope creep";
+  if (lower.includes("hallucinated")) return "Hallucinated policy";
+  if (lower.includes("wrong tool")) return "Wrong tool";
+  return description.slice(0, 35);
+}
+
+export function getHealthData(organizationId: string): {
+  agentId: string;
+  evalTrend: HealthEvalPoint[];
+  categoryTrend: CategoryWeekPoint[];
+  activeAlarms: Alarm[];
+  totalWeeks: number;
+} {
+  const data = scopedData(getData(), organizationId);
+  const evalResultsByRunId = new Map<string, EvalResult[]>();
+  for (const er of data.eval_results) {
+    if (er.optimization_run_id) {
+      const list = evalResultsByRunId.get(er.optimization_run_id) ?? [];
+      list.push(er);
+      evalResultsByRunId.set(er.optimization_run_id, list);
+    }
+  }
+
+  const sortedRuns = data.runs
+    .slice()
+    .sort((a, b) => a.created_at.localeCompare(b.created_at));
+
+  const evalTrend: HealthEvalPoint[] = [];
+  const categoryTrend: CategoryWeekPoint[] = [];
+
+  for (const run of sortedRuns) {
+    const date = run.created_at.slice(0, 10);
+    const events = eventsForRun(data.events, run.id);
+    const gate = summarizeGate(run, events);
+    const runEvals = evalResultsByRunId.get(run.id) ?? [];
+
+    // Eval trend: use the best candidate score if PRs shipped, otherwise the baseline eval.
+    const shippedEvals = runEvals.filter((er) => er.passed);
+    const baselineEval = runEvals.find((er) => !er.passed && er.proposed_change_id == null);
+    const hasData = shippedEvals.length > 0 || baselineEval != null;
+
+    evalTrend.push({
+      date,
+      baseline_score: hasData
+        ? average(runEvals.map((er) => er.baseline_score))
+        : null,
+      candidate_score: shippedEvals.length > 0
+        ? average(shippedEvals.map((er) => er.candidate_score))
+        : baselineEval != null
+          ? baselineEval.baseline_score
+          : null,
+      judge_agreement_rate: hasData
+        ? average(runEvals.map((er) => er.judge_agreement_rate))
+        : null,
+      prs_shipped: gate.prs_opened,
+      run_status: run.status,
+    });
+
+    // Category trend: sum cluster sizes per semantic category.
+    const categorySizes = new Map<string, number>();
+    for (const clusterId of run.cluster_ids) {
+      const cluster = data.clusters.find((c) => c.id === clusterId);
+      if (!cluster) continue;
+      const cat = _normalizeCategory(cluster.description);
+      categorySizes.set(cat, (categorySizes.get(cat) ?? 0) + cluster.size);
+    }
+    for (const [category, size] of categorySizes) {
+      categoryTrend.push({ date, category, size });
+    }
+  }
+
+  const agentIds = [...new Set(sortedRuns.map((r) => r.agent_id))];
+
+  return {
+    agentId: agentIds[0] ?? "unknown",
+    evalTrend,
+    categoryTrend,
+    activeAlarms: data.alarms ?? [],
+    totalWeeks: sortedRuns.length,
   };
 }

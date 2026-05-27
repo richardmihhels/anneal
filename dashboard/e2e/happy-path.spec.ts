@@ -2,14 +2,26 @@ import { expect, test } from "@playwright/test";
 
 test("dashboard happy path", async ({ page }) => {
   await page.goto("/login");
-  // After login the app redirects to /app (marketing page lives at /)
+  // After login the app redirects to /app (Health view — marketing page lives at /)
   await page.getByRole("button", { name: "Continue to Prompt 7 Demo" }).click();
 
+  // Health view is now the default landing page
   await expect(
-    page.getByRole("heading", { name: "Overview" }),
+    page.getByRole("heading", { name: "Agent Health" }),
   ).toBeVisible();
   await expect(
     page.getByRole("img", { name: "Eval score trend" }),
+  ).toBeVisible();
+  await expect(page.getByText("Failure categories")).toBeVisible();
+
+  // Alarm should be visible (seed data has one alarm)
+  await expect(page.getByRole("alert", { name: "Active regression alarms" })).toBeVisible();
+  await expect(page.getByText(/policy_violation spike detected/)).toBeVisible();
+
+  // Navigate to Overview (demoted from default)
+  await page.locator("nav").getByRole("link", { name: "Overview" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Overview" }),
   ).toBeVisible();
   await expect(page.getByText("Regressions prevented")).toBeVisible();
 
