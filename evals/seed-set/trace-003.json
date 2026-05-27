@@ -1,0 +1,114 @@
+{
+  "id": "cafe0003-0000-4000-8000-000000000003",
+  "agent_id": "cascade-support-v1",
+  "session_id": "sess0003-0000-4000-8000-000000000003",
+  "created_at": "2025-02-05T11:44:00Z",
+  "outcome": "success",
+  "metadata": {
+    "label": "success",
+    "failure_category": null,
+    "rationale": "Agent checked current subscription, then applied the upgrade using update_subscription with immediate effect, and confirmed all details correctly.",
+    "annotator": "human",
+    "customer_tier": "starter",
+    "ticket_type": "subscription_change",
+    "customer_tone": "polite",
+    "conversation_length": "medium"
+  },
+  "spans": [
+    {
+      "id": "span0003-0001-4000-8000-000003000001",
+      "trace_id": "cafe0003-0000-4000-8000-000000000003",
+      "name": "agent_turn",
+      "start_time": "2025-02-05T11:44:00Z",
+      "end_time": "2025-02-05T11:44:01.790Z",
+      "duration_ms": 1790.0,
+      "input": {
+        "messages": [
+          {"role": "user", "content": "Hi there! We've been on the Starter plan for about 6 months and we're growing fast. Could you upgrade us to the Pro plan? Email is priya.sharma@novavault.com."}
+        ]
+      },
+      "output": {
+        "content": null,
+        "tool_calls": [{"tool": "check_subscription", "arguments": {"customer_email": "priya.sharma@novavault.com"}}]
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0003-0002-4000-8000-000003000002",
+      "trace_id": "cafe0003-0000-4000-8000-000000000003",
+      "name": "tool:check_subscription",
+      "start_time": "2025-02-05T11:44:01.840Z",
+      "end_time": "2025-02-05T11:44:02.510Z",
+      "duration_ms": 670.0,
+      "input": {"customer_email": "priya.sharma@novavault.com"},
+      "output": {
+        "plan": "starter",
+        "status": "active",
+        "current_period_start": "2025-02-01",
+        "current_period_end": "2025-03-01",
+        "seats": 5,
+        "mrr_usd": 29.00,
+        "auto_renew": true
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0003-0003-4000-8000-000003000003",
+      "trace_id": "cafe0003-0000-4000-8000-000000000003",
+      "name": "agent_turn",
+      "start_time": "2025-02-05T11:44:02.560Z",
+      "end_time": "2025-02-05T11:44:04.100Z",
+      "duration_ms": 1540.0,
+      "input": {
+        "messages": [
+          {"role": "tool_result", "tool": "check_subscription", "content": {"plan": "starter", "status": "active", "current_period_end": "2025-03-01"}}
+        ]
+      },
+      "output": {
+        "content": null,
+        "tool_calls": [{"tool": "update_subscription", "arguments": {"customer_email": "priya.sharma@novavault.com", "new_plan": "pro", "effective_date": "immediate"}}]
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0003-0004-4000-8000-000003000004",
+      "trace_id": "cafe0003-0000-4000-8000-000000000003",
+      "name": "tool:update_subscription",
+      "start_time": "2025-02-05T11:44:04.150Z",
+      "end_time": "2025-02-05T11:44:05.020Z",
+      "duration_ms": 870.0,
+      "input": {"customer_email": "priya.sharma@novavault.com", "new_plan": "pro", "effective_date": "immediate"},
+      "output": {
+        "subscription_id": "SUB-19823",
+        "old_plan": "starter",
+        "new_plan": "pro",
+        "effective_date": "2025-02-05",
+        "prorated_credit_usd": 18.77
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0003-0005-4000-8000-000003000005",
+      "trace_id": "cafe0003-0000-4000-8000-000000000003",
+      "name": "agent_turn",
+      "start_time": "2025-02-05T11:44:05.070Z",
+      "end_time": "2025-02-05T11:44:06.410Z",
+      "duration_ms": 1340.0,
+      "input": {
+        "messages": [
+          {"role": "tool_result", "tool": "update_subscription", "content": {"old_plan": "starter", "new_plan": "pro", "effective_date": "2025-02-05", "prorated_credit_usd": 18.77}}
+        ]
+      },
+      "output": {
+        "content": "Your account has been upgraded from Starter to Pro, effective today (February 5). A prorated credit of $18.77 has been applied to your account balance for the unused portion of your Starter plan. You now have access to all Pro features. Is there anything else I can help you with?",
+        "tool_calls": []
+      },
+      "error": null,
+      "metadata": {}
+    }
+  ]
+}

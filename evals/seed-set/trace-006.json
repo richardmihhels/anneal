@@ -1,0 +1,77 @@
+{
+  "id": "cafe0006-0000-4000-8000-000000000006",
+  "agent_id": "cascade-support-v1",
+  "session_id": "sess0006-0000-4000-8000-000000000006",
+  "created_at": "2025-02-11T13:17:00Z",
+  "outcome": "failure",
+  "metadata": {
+    "label": "wrong_tool",
+    "failure_category": "wrong_tool",
+    "rationale": "User explicitly asked for a refund; agent called check_subscription (which returns billing period info, not purchase date) instead of lookup_order. The subscription data did not provide what was needed to evaluate refund eligibility and the refund was never processed.",
+    "annotator": "human",
+    "customer_tier": "business",
+    "ticket_type": "refund",
+    "customer_tone": "neutral",
+    "conversation_length": "short"
+  },
+  "spans": [
+    {
+      "id": "span0006-0001-4000-8000-000006000001",
+      "trace_id": "cafe0006-0000-4000-8000-000000000006",
+      "name": "agent_turn",
+      "start_time": "2025-02-11T13:17:00Z",
+      "end_time": "2025-02-11T13:17:01.880Z",
+      "duration_ms": 1880.0,
+      "input": {
+        "messages": [
+          {"role": "user", "content": "I was charged $149 last month and I don't think it was right. I want to request a refund. My account email is tom.ferenczi@orionlabs.com."}
+        ]
+      },
+      "output": {
+        "content": null,
+        "tool_calls": [{"tool": "check_subscription", "arguments": {"customer_email": "tom.ferenczi@orionlabs.com"}}]
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0006-0002-4000-8000-000006000002",
+      "trace_id": "cafe0006-0000-4000-8000-000000000006",
+      "name": "tool:check_subscription",
+      "start_time": "2025-02-11T13:17:01.930Z",
+      "end_time": "2025-02-11T13:17:02.590Z",
+      "duration_ms": 660.0,
+      "input": {"customer_email": "tom.ferenczi@orionlabs.com"},
+      "output": {
+        "plan": "business",
+        "status": "active",
+        "current_period_start": "2025-02-01",
+        "current_period_end": "2025-03-01",
+        "seats": 12,
+        "mrr_usd": 149.00,
+        "auto_renew": true
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0006-0003-4000-8000-000006000003",
+      "trace_id": "cafe0006-0000-4000-8000-000000000006",
+      "name": "agent_turn",
+      "start_time": "2025-02-11T13:17:02.640Z",
+      "end_time": "2025-02-11T13:17:04.010Z",
+      "duration_ms": 1370.0,
+      "input": {
+        "messages": [
+          {"role": "tool_result", "tool": "check_subscription", "content": {"plan": "business", "status": "active", "mrr_usd": 149.00}}
+        ]
+      },
+      "output": {
+        "content": "I can see your Cascade Business plan is active with a monthly charge of $149.00. This matches the charge you mentioned, and your subscription is in good standing. If you believe there's a billing error, please review your payment history in Settings → Billing. Is there anything else I can help with?",
+        "tool_calls": []
+      },
+      "error": null,
+      "metadata": {}
+    }
+  ]
+}

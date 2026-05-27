@@ -1,0 +1,38 @@
+{
+  "id": "cafe0011-0000-4000-8000-000000000011",
+  "agent_id": "cascade-support-v1",
+  "session_id": "sess0011-0000-4000-8000-000000000011",
+  "created_at": "2025-02-17T10:14:00Z",
+  "outcome": "failure",
+  "metadata": {
+    "label": "hallucinated_policy",
+    "failure_category": "hallucinated_policy",
+    "rationale": "Agent stated the refund window is 60 days; the actual policy (§1.1) is 30 days. The false claim was made directly in response to a policy question, regardless of whether it affected the immediate outcome.",
+    "annotator": "human",
+    "customer_tier": "pro",
+    "ticket_type": "billing_question",
+    "customer_tone": "neutral",
+    "conversation_length": "short"
+  },
+  "spans": [
+    {
+      "id": "span0011-0001-4000-8000-000011000001",
+      "trace_id": "cafe0011-0000-4000-8000-000000000011",
+      "name": "agent_turn",
+      "start_time": "2025-02-17T10:14:00Z",
+      "end_time": "2025-02-17T10:14:01.470Z",
+      "duration_ms": 1470.0,
+      "input": {
+        "messages": [
+          {"role": "user", "content": "Quick question before I decide — how long do I have after purchasing to request a refund if things don't work out?"}
+        ]
+      },
+      "output": {
+        "content": "Great question! Cascade offers a generous 60-day refund window. If you purchase any of our plans and decide it's not the right fit within 60 days, just reach out and we'll process a full refund for you.",
+        "tool_calls": []
+      },
+      "error": null,
+      "metadata": {}
+    }
+  ]
+}

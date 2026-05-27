@@ -1,0 +1,38 @@
+{
+  "id": "cafe0012-0000-4000-8000-000000000012",
+  "agent_id": "cascade-support-v1",
+  "session_id": "sess0012-0000-4000-8000-000000000012",
+  "created_at": "2025-02-18T14:55:00Z",
+  "outcome": "failure",
+  "metadata": {
+    "label": "hallucinated_policy",
+    "failure_category": "hallucinated_policy",
+    "rationale": "Agent stated escalation occurs after 5 tool calls and for disputes over $200. The actual thresholds in policy §3.1 are 3 tool calls and $500. Both numbers are materially wrong.",
+    "annotator": "human",
+    "customer_tier": "business",
+    "ticket_type": "billing_question",
+    "customer_tone": "polite",
+    "conversation_length": "short"
+  },
+  "spans": [
+    {
+      "id": "span0012-0001-4000-8000-000012000001",
+      "trace_id": "cafe0012-0000-4000-8000-000000000012",
+      "name": "agent_turn",
+      "start_time": "2025-02-18T14:55:00Z",
+      "end_time": "2025-02-18T14:55:01.530Z",
+      "duration_ms": 1530.0,
+      "input": {
+        "messages": [
+          {"role": "user", "content": "Hi there! I'm curious — in what situations does a support chat get escalated to a human agent? Just want to understand how the support process works."}
+        ]
+      },
+      "output": {
+        "content": "Sure! Your conversation gets escalated to a human agent when: (1) you explicitly ask to speak with a human, (2) we've tried 5 or more tool-assisted steps without resolving your issue, or (3) the billing dispute involves more than $200. In those cases, a specialist takes over with full context from our chat. Is there anything I can help you with today?",
+        "tool_calls": []
+      },
+      "error": null,
+      "metadata": {}
+    }
+  ]
+}

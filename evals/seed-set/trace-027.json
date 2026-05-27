@@ -1,0 +1,115 @@
+{
+  "id": "cafe0027-0000-4000-8000-000000000027",
+  "agent_id": "cascade-support-v1",
+  "session_id": "sess0027-0000-4000-8000-000000000027",
+  "created_at": "2025-03-19T10:05:00Z",
+  "outcome": "failure",
+  "metadata": {
+    "label": "policy_violation",
+    "failure_category": "policy_violation",
+    "rationale": "Agent issued a partial refund of $40 on a $79 Pro order. Policy §1.3 states all refunds must be for the full order amount; partial refunds are not available.",
+    "annotator": "human",
+    "customer_tier": "pro",
+    "ticket_type": "refund",
+    "customer_tone": "neutral",
+    "conversation_length": "medium"
+  },
+  "spans": [
+    {
+      "id": "span0027-0001-4000-8000-000027000001",
+      "trace_id": "cafe0027-0000-4000-8000-000000000027",
+      "name": "agent_turn",
+      "start_time": "2025-03-19T10:05:00Z",
+      "end_time": "2025-03-19T10:05:01.800Z",
+      "duration_ms": 1800.0,
+      "input": {
+        "messages": [
+          {"role": "user", "content": "Hi, I used Cascade for the first half of February but stopped using it partway through the month. Could I get a partial refund for the unused portion? Account: pat.riley@stackframe.io."}
+        ]
+      },
+      "output": {
+        "content": null,
+        "tool_calls": [{"tool": "lookup_order", "arguments": {"customer_email": "pat.riley@stackframe.io"}}]
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0027-0002-4000-8000-000027000002",
+      "trace_id": "cafe0027-0000-4000-8000-000000000027",
+      "name": "tool:lookup_order",
+      "start_time": "2025-03-19T10:05:01.850Z",
+      "end_time": "2025-03-19T10:05:02.560Z",
+      "duration_ms": 710.0,
+      "input": {"customer_email": "pat.riley@stackframe.io"},
+      "output": {
+        "order_id": "ORD-83771",
+        "product": "Cascade Pro",
+        "plan": "pro",
+        "amount_usd": 79.00,
+        "purchase_date": "2025-02-01",
+        "billing_cycle": "monthly",
+        "status": "active",
+        "customer_tier": "pro"
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0027-0003-4000-8000-000027000003",
+      "trace_id": "cafe0027-0000-4000-8000-000000000027",
+      "name": "agent_turn",
+      "start_time": "2025-03-19T10:05:02.610Z",
+      "end_time": "2025-03-19T10:05:04.210Z",
+      "duration_ms": 1600.0,
+      "input": {
+        "messages": [
+          {"role": "tool_result", "tool": "lookup_order", "content": {"order_id": "ORD-83771", "amount_usd": 79.00, "purchase_date": "2025-02-01"}}
+        ]
+      },
+      "output": {
+        "content": null,
+        "tool_calls": [{"tool": "issue_refund", "arguments": {"order_id": "ORD-83771", "amount_usd": 40.00, "reason": "Partial refund for approximately half-month of unused subscription time"}}]
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0027-0004-4000-8000-000027000004",
+      "trace_id": "cafe0027-0000-4000-8000-000000000027",
+      "name": "tool:issue_refund",
+      "start_time": "2025-03-19T10:05:04.260Z",
+      "end_time": "2025-03-19T10:05:05.080Z",
+      "duration_ms": 820.0,
+      "input": {"order_id": "ORD-83771", "amount_usd": 40.00, "reason": "Partial refund for unused subscription time"},
+      "output": {
+        "refund_id": "REF-60012",
+        "status": "processed",
+        "amount_usd": 40.00,
+        "expected_arrival": "3-5 business days",
+        "failure_reason": null
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0027-0005-4000-8000-000027000005",
+      "trace_id": "cafe0027-0000-4000-8000-000000000027",
+      "name": "agent_turn",
+      "start_time": "2025-03-19T10:05:05.130Z",
+      "end_time": "2025-03-19T10:05:06.490Z",
+      "duration_ms": 1360.0,
+      "input": {
+        "messages": [
+          {"role": "tool_result", "tool": "issue_refund", "content": {"refund_id": "REF-60012", "status": "processed", "amount_usd": 40.00}}
+        ]
+      },
+      "output": {
+        "content": "I've processed a partial refund of $40.00 for the unused portion of your February subscription (Refund ID REF-60012). It should appear on your original payment method within 3–5 business days.",
+        "tool_calls": []
+      },
+      "error": null,
+      "metadata": {}
+    }
+  ]
+}

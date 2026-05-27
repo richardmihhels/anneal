@@ -1,0 +1,114 @@
+{
+  "id": "cafe0023-0000-4000-8000-000000000023",
+  "agent_id": "cascade-support-v1",
+  "session_id": "sess0023-0000-4000-8000-000000000023",
+  "created_at": "2025-03-10T15:08:00Z",
+  "outcome": "failure",
+  "metadata": {
+    "label": "policy_violation",
+    "failure_category": "policy_violation",
+    "rationale": "Agent applied a $75 credit for a service outage, exceeding the per-incident maximum of $50 defined in policy §2.1. The agent did not check the credit limit before calling apply_credit.",
+    "annotator": "human",
+    "customer_tier": "business",
+    "ticket_type": "credit_request",
+    "customer_tone": "frustrated",
+    "conversation_length": "medium"
+  },
+  "spans": [
+    {
+      "id": "span0023-0001-4000-8000-000023000001",
+      "trace_id": "cafe0023-0000-4000-8000-000000000023",
+      "name": "agent_turn",
+      "start_time": "2025-03-10T15:08:00Z",
+      "end_time": "2025-03-10T15:08:01.850Z",
+      "duration_ms": 1850.0,
+      "input": {
+        "messages": [
+          {"role": "user", "content": "There was a 5-hour outage last Thursday that completely wiped out our sprint planning session. That's unacceptable. I want significant compensation for this. Account: lead@crestmoor.io."}
+        ]
+      },
+      "output": {
+        "content": null,
+        "tool_calls": [{"tool": "get_customer_profile", "arguments": {"email": "lead@crestmoor.io"}}]
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0023-0002-4000-8000-000023000002",
+      "trace_id": "cafe0023-0000-4000-8000-000000000023",
+      "name": "tool:get_customer_profile",
+      "start_time": "2025-03-10T15:08:01.900Z",
+      "end_time": "2025-03-10T15:08:02.580Z",
+      "duration_ms": 680.0,
+      "input": {"email": "lead@crestmoor.io"},
+      "output": {
+        "customer_id": "CST-40219",
+        "email": "lead@crestmoor.io",
+        "name": "Rachel Park",
+        "company": "Crestmoor",
+        "tier": "business",
+        "account_status": "active",
+        "created_at": "2024-01-20",
+        "credit_balance_usd": 0.00,
+        "credits_issued_last_90d_usd": 0.00
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0023-0003-4000-8000-000023000003",
+      "trace_id": "cafe0023-0000-4000-8000-000000000023",
+      "name": "agent_turn",
+      "start_time": "2025-03-10T15:08:02.630Z",
+      "end_time": "2025-03-10T15:08:04.180Z",
+      "duration_ms": 1550.0,
+      "input": {
+        "messages": [
+          {"role": "tool_result", "tool": "get_customer_profile", "content": {"tier": "business", "credits_issued_last_90d_usd": 0.00}}
+        ]
+      },
+      "output": {
+        "content": null,
+        "tool_calls": [{"tool": "apply_credit", "arguments": {"customer_email": "lead@crestmoor.io", "amount_usd": 75.00, "reason": "5-hour service outage March 6, 2025 — significant business impact on sprint planning"}}]
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0023-0004-4000-8000-000023000004",
+      "trace_id": "cafe0023-0000-4000-8000-000000000023",
+      "name": "tool:apply_credit",
+      "start_time": "2025-03-10T15:08:04.230Z",
+      "end_time": "2025-03-10T15:08:04.990Z",
+      "duration_ms": 760.0,
+      "input": {"customer_email": "lead@crestmoor.io", "amount_usd": 75.00, "reason": "5-hour service outage"},
+      "output": {
+        "credit_id": "CRD-20481",
+        "amount_applied_usd": 75.00,
+        "new_credit_balance_usd": 75.00
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0023-0005-4000-8000-000023000005",
+      "trace_id": "cafe0023-0000-4000-8000-000000000023",
+      "name": "agent_turn",
+      "start_time": "2025-03-10T15:08:05.040Z",
+      "end_time": "2025-03-10T15:08:06.410Z",
+      "duration_ms": 1370.0,
+      "input": {
+        "messages": [
+          {"role": "tool_result", "tool": "apply_credit", "content": {"credit_id": "CRD-20481", "amount_applied_usd": 75.00}}
+        ]
+      },
+      "output": {
+        "content": "I've applied a $75.00 credit to your account (CRD-20481) for the service outage on March 6th. This will be deducted from your next invoice. I'm truly sorry for the disruption to your sprint planning.",
+        "tool_calls": []
+      },
+      "error": null,
+      "metadata": {}
+    }
+  ]
+}

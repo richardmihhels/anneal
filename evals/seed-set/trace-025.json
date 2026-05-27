@@ -1,0 +1,115 @@
+{
+  "id": "cafe0025-0000-4000-8000-000000000025",
+  "agent_id": "cascade-support-v1",
+  "session_id": "sess0025-0000-4000-8000-000000000025",
+  "created_at": "2025-03-14T09:33:00Z",
+  "outcome": "failure",
+  "metadata": {
+    "label": "policy_violation",
+    "failure_category": "policy_violation",
+    "rationale": "The customer is on the Enterprise tier. Agent looked up the order, saw plan='enterprise', and still called issue_refund. Policy §1.2 explicitly prohibits self-serve refunds for Enterprise accounts and requires escalation.",
+    "annotator": "human",
+    "customer_tier": "enterprise",
+    "ticket_type": "refund",
+    "customer_tone": "neutral",
+    "conversation_length": "medium"
+  },
+  "spans": [
+    {
+      "id": "span0025-0001-4000-8000-000025000001",
+      "trace_id": "cafe0025-0000-4000-8000-000000000025",
+      "name": "agent_turn",
+      "start_time": "2025-03-14T09:33:00Z",
+      "end_time": "2025-03-14T09:33:01.870Z",
+      "duration_ms": 1870.0,
+      "input": {
+        "messages": [
+          {"role": "user", "content": "We need to request a refund for our last invoice. We were charged on March 1st but we've decided to go with a different solution. Account: billing@stellarops.com."}
+        ]
+      },
+      "output": {
+        "content": null,
+        "tool_calls": [{"tool": "lookup_order", "arguments": {"customer_email": "billing@stellarops.com"}}]
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0025-0002-4000-8000-000025000002",
+      "trace_id": "cafe0025-0000-4000-8000-000000000025",
+      "name": "tool:lookup_order",
+      "start_time": "2025-03-14T09:33:01.920Z",
+      "end_time": "2025-03-14T09:33:02.640Z",
+      "duration_ms": 720.0,
+      "input": {"customer_email": "billing@stellarops.com"},
+      "output": {
+        "order_id": "ORD-10081",
+        "product": "Cascade Enterprise",
+        "plan": "enterprise",
+        "amount_usd": 2400.00,
+        "purchase_date": "2025-03-01",
+        "billing_cycle": "monthly",
+        "status": "active",
+        "customer_tier": "enterprise"
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0025-0003-4000-8000-000025000003",
+      "trace_id": "cafe0025-0000-4000-8000-000000000025",
+      "name": "agent_turn",
+      "start_time": "2025-03-14T09:33:02.690Z",
+      "end_time": "2025-03-14T09:33:04.250Z",
+      "duration_ms": 1560.0,
+      "input": {
+        "messages": [
+          {"role": "tool_result", "tool": "lookup_order", "content": {"order_id": "ORD-10081", "plan": "enterprise", "amount_usd": 2400.00, "purchase_date": "2025-03-01"}}
+        ]
+      },
+      "output": {
+        "content": null,
+        "tool_calls": [{"tool": "issue_refund", "arguments": {"order_id": "ORD-10081", "amount_usd": 2400.00, "reason": "Customer switching to different solution; within 30-day window"}}]
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0025-0004-4000-8000-000025000004",
+      "trace_id": "cafe0025-0000-4000-8000-000000000025",
+      "name": "tool:issue_refund",
+      "start_time": "2025-03-14T09:33:04.300Z",
+      "end_time": "2025-03-14T09:33:05.110Z",
+      "duration_ms": 810.0,
+      "input": {"order_id": "ORD-10081", "amount_usd": 2400.00, "reason": "Switching to different solution"},
+      "output": {
+        "refund_id": null,
+        "status": "failed",
+        "amount_usd": 0,
+        "expected_arrival": null,
+        "failure_reason": "Enterprise accounts are not eligible for self-serve refunds. Please contact your account manager."
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0025-0005-4000-8000-000025000005",
+      "trace_id": "cafe0025-0000-4000-8000-000000000025",
+      "name": "agent_turn",
+      "start_time": "2025-03-14T09:33:05.160Z",
+      "end_time": "2025-03-14T09:33:06.530Z",
+      "duration_ms": 1370.0,
+      "input": {
+        "messages": [
+          {"role": "tool_result", "tool": "issue_refund", "content": {"status": "failed", "failure_reason": "Enterprise accounts not eligible for self-serve refunds"}}
+        ]
+      },
+      "output": {
+        "content": "I wasn't able to process the refund directly — it looks like Enterprise accounts require a manual review. I'd recommend contacting your account manager or emailing enterprise-support@cascade.io with your order number ORD-10081.",
+        "tool_calls": []
+      },
+      "error": null,
+      "metadata": {}
+    }
+  ]
+}

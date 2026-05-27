@@ -1,0 +1,114 @@
+{
+  "id": "cafe0004-0000-4000-8000-000000000004",
+  "agent_id": "cascade-support-v1",
+  "session_id": "sess0004-0000-4000-8000-000000000004",
+  "created_at": "2025-02-07T16:05:00Z",
+  "outcome": "success",
+  "metadata": {
+    "label": "success",
+    "failure_category": null,
+    "rationale": "Agent checked the customer profile to verify credit history, confirmed the $30 credit is within per-incident and 90-day limits, then applied it correctly.",
+    "annotator": "human",
+    "customer_tier": "business",
+    "ticket_type": "credit_request",
+    "customer_tone": "frustrated",
+    "conversation_length": "medium"
+  },
+  "spans": [
+    {
+      "id": "span0004-0001-4000-8000-000004000001",
+      "trace_id": "cafe0004-0000-4000-8000-000000000004",
+      "name": "agent_turn",
+      "start_time": "2025-02-07T16:05:00Z",
+      "end_time": "2025-02-07T16:05:01.910Z",
+      "duration_ms": 1910.0,
+      "input": {
+        "messages": [
+          {"role": "user", "content": "Your service was completely down for 3 hours on Monday morning. That's peak time for our team and it cost us real productivity. I expect some compensation. Account is under dana.okonkwo@bridgetek.com."}
+        ]
+      },
+      "output": {
+        "content": null,
+        "tool_calls": [{"tool": "get_customer_profile", "arguments": {"email": "dana.okonkwo@bridgetek.com"}}]
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0004-0002-4000-8000-000004000002",
+      "trace_id": "cafe0004-0000-4000-8000-000000000004",
+      "name": "tool:get_customer_profile",
+      "start_time": "2025-02-07T16:05:01.960Z",
+      "end_time": "2025-02-07T16:05:02.620Z",
+      "duration_ms": 660.0,
+      "input": {"email": "dana.okonkwo@bridgetek.com"},
+      "output": {
+        "customer_id": "CST-30817",
+        "email": "dana.okonkwo@bridgetek.com",
+        "name": "Dana Okonkwo",
+        "company": "BridgeTek",
+        "tier": "business",
+        "account_status": "active",
+        "created_at": "2023-08-14",
+        "credit_balance_usd": 0.00,
+        "credits_issued_last_90d_usd": 0.00
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0004-0003-4000-8000-000004000003",
+      "trace_id": "cafe0004-0000-4000-8000-000000000004",
+      "name": "agent_turn",
+      "start_time": "2025-02-07T16:05:02.670Z",
+      "end_time": "2025-02-07T16:05:04.290Z",
+      "duration_ms": 1620.0,
+      "input": {
+        "messages": [
+          {"role": "tool_result", "tool": "get_customer_profile", "content": {"tier": "business", "credits_issued_last_90d_usd": 0.00}}
+        ]
+      },
+      "output": {
+        "content": null,
+        "tool_calls": [{"tool": "apply_credit", "arguments": {"customer_email": "dana.okonkwo@bridgetek.com", "amount_usd": 30.00, "reason": "Service outage February 3, 2025 — approximately 3 hours of downtime during business hours"}}]
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0004-0004-4000-8000-000004000004",
+      "trace_id": "cafe0004-0000-4000-8000-000000000004",
+      "name": "tool:apply_credit",
+      "start_time": "2025-02-07T16:05:04.340Z",
+      "end_time": "2025-02-07T16:05:05.080Z",
+      "duration_ms": 740.0,
+      "input": {"customer_email": "dana.okonkwo@bridgetek.com", "amount_usd": 30.00, "reason": "Service outage February 3, 2025 — approximately 3 hours of downtime during business hours"},
+      "output": {
+        "credit_id": "CRD-10042",
+        "amount_applied_usd": 30.00,
+        "new_credit_balance_usd": 30.00
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0004-0005-4000-8000-000004000005",
+      "trace_id": "cafe0004-0000-4000-8000-000000000004",
+      "name": "agent_turn",
+      "start_time": "2025-02-07T16:05:05.130Z",
+      "end_time": "2025-02-07T16:05:06.510Z",
+      "duration_ms": 1380.0,
+      "input": {
+        "messages": [
+          {"role": "tool_result", "tool": "apply_credit", "content": {"credit_id": "CRD-10042", "amount_applied_usd": 30.00}}
+        ]
+      },
+      "output": {
+        "content": "I've applied a $30.00 credit to your account (Credit ID CRD-10042) for the service interruption on February 3. This credit will automatically be applied to your next invoice. I apologize for the disruption to your team's work. Is there anything else I can help you with?",
+        "tool_calls": []
+      },
+      "error": null,
+      "metadata": {}
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+{
+  "id": "cafe0007-0000-4000-8000-000000000007",
+  "agent_id": "cascade-support-v1",
+  "session_id": "sess0007-0000-4000-8000-000000000007",
+  "created_at": "2025-02-12T15:02:00Z",
+  "outcome": "failure",
+  "metadata": {
+    "label": "wrong_tool",
+    "failure_category": "wrong_tool",
+    "rationale": "User asked a product feature question about webhook support; agent called lookup_order (returning irrelevant order data) instead of search_kb. The feature question was never answered and the agent incorrectly directed the user to the sales team.",
+    "annotator": "human",
+    "customer_tier": "pro",
+    "ticket_type": "product_question",
+    "customer_tone": "neutral",
+    "conversation_length": "short"
+  },
+  "spans": [
+    {
+      "id": "span0007-0001-4000-8000-000007000001",
+      "trace_id": "cafe0007-0000-4000-8000-000000000007",
+      "name": "agent_turn",
+      "start_time": "2025-02-12T15:02:00Z",
+      "end_time": "2025-02-12T15:02:01.720Z",
+      "duration_ms": 1720.0,
+      "input": {
+        "messages": [
+          {"role": "user", "content": "Hi, does Cascade support outbound webhooks? We need to push task-completion events to our internal data warehouse. Email: dev@synthwave.io."}
+        ]
+      },
+      "output": {
+        "content": null,
+        "tool_calls": [{"tool": "lookup_order", "arguments": {"customer_email": "dev@synthwave.io"}}]
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0007-0002-4000-8000-000007000002",
+      "trace_id": "cafe0007-0000-4000-8000-000000000007",
+      "name": "tool:lookup_order",
+      "start_time": "2025-02-12T15:02:01.770Z",
+      "end_time": "2025-02-12T15:02:02.490Z",
+      "duration_ms": 720.0,
+      "input": {"customer_email": "dev@synthwave.io"},
+      "output": {
+        "order_id": "ORD-71204",
+        "product": "Cascade Pro",
+        "plan": "pro",
+        "amount_usd": 79.00,
+        "purchase_date": "2024-11-18",
+        "billing_cycle": "monthly",
+        "status": "active",
+        "customer_tier": "pro"
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0007-0003-4000-8000-000007000003",
+      "trace_id": "cafe0007-0000-4000-8000-000000000007",
+      "name": "agent_turn",
+      "start_time": "2025-02-12T15:02:02.540Z",
+      "end_time": "2025-02-12T15:02:03.870Z",
+      "duration_ms": 1330.0,
+      "input": {
+        "messages": [
+          {"role": "tool_result", "tool": "lookup_order", "content": {"order_id": "ORD-71204", "plan": "pro", "status": "active"}}
+        ]
+      },
+      "output": {
+        "content": "I can see you're on the Cascade Pro plan. Webhook and advanced integration features are part of our Business and Enterprise tiers. To discuss upgrading or to learn more about integration capabilities, please reach out to our sales team at sales@cascade.io. Is there anything else I can help with?",
+        "tool_calls": []
+      },
+      "error": null,
+      "metadata": {}
+    }
+  ]
+}

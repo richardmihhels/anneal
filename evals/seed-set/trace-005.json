@@ -1,0 +1,174 @@
+{
+  "id": "cafe0005-0000-4000-8000-000000000005",
+  "agent_id": "cascade-support-v1",
+  "session_id": "sess0005-0000-4000-8000-000000000005",
+  "created_at": "2025-02-10T10:32:00Z",
+  "outcome": "success",
+  "metadata": {
+    "label": "success",
+    "failure_category": null,
+    "rationale": "Agent correctly escalated after exactly 3 unsuccessful search_kb attempts for a technical SSO issue that genuinely required human expertise.",
+    "annotator": "human",
+    "customer_tier": "business",
+    "ticket_type": "account_issue",
+    "customer_tone": "frustrated",
+    "conversation_length": "long"
+  },
+  "spans": [
+    {
+      "id": "span0005-0001-4000-8000-000005000001",
+      "trace_id": "cafe0005-0000-4000-8000-000000000005",
+      "name": "agent_turn",
+      "start_time": "2025-02-10T10:32:00Z",
+      "end_time": "2025-02-10T10:32:01.750Z",
+      "duration_ms": 1750.0,
+      "input": {
+        "messages": [
+          {"role": "user", "content": "We're getting SAML assertion errors when trying to configure SSO with Okta. Error code is SAML_INVALID_RESPONSE_SIGNATURE. This is blocking our entire team from logging in. Account: ops@helixdata.io."}
+        ]
+      },
+      "output": {
+        "content": null,
+        "tool_calls": [{"tool": "search_kb", "arguments": {"query": "SAML assertion error SAML_INVALID_RESPONSE_SIGNATURE Okta", "max_results": 3}}]
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0005-0002-4000-8000-000005000002",
+      "trace_id": "cafe0005-0000-4000-8000-000000000005",
+      "name": "tool:search_kb",
+      "start_time": "2025-02-10T10:32:01.800Z",
+      "end_time": "2025-02-10T10:32:02.510Z",
+      "duration_ms": 710.0,
+      "input": {"query": "SAML assertion error SAML_INVALID_RESPONSE_SIGNATURE Okta", "max_results": 3},
+      "output": {
+        "articles": [
+          {"id": "KB-3102", "title": "Setting Up SSO with SAML 2.0", "url": "https://help.cascade.io/articles/3102", "snippet": "Cascade supports SAML 2.0 SSO with major identity providers. Download the SP metadata from Settings → Security → SSO.", "relevance_score": 0.61}
+        ]
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0005-0003-4000-8000-000005000003",
+      "trace_id": "cafe0005-0000-4000-8000-000000000005",
+      "name": "agent_turn",
+      "start_time": "2025-02-10T10:32:02.560Z",
+      "end_time": "2025-02-10T10:32:04.110Z",
+      "duration_ms": 1550.0,
+      "input": {
+        "messages": [
+          {"role": "tool_result", "tool": "search_kb", "content": {"articles": [{"id": "KB-3102", "snippet": "Cascade supports SAML 2.0 SSO..."}]}}
+        ]
+      },
+      "output": {
+        "content": null,
+        "tool_calls": [{"tool": "search_kb", "arguments": {"query": "SAML invalid response signature certificate Okta SSO", "max_results": 3}}]
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0005-0004-4000-8000-000005000004",
+      "trace_id": "cafe0005-0000-4000-8000-000000000005",
+      "name": "tool:search_kb",
+      "start_time": "2025-02-10T10:32:04.160Z",
+      "end_time": "2025-02-10T10:32:04.890Z",
+      "duration_ms": 730.0,
+      "input": {"query": "SAML invalid response signature certificate Okta SSO", "max_results": 3},
+      "output": {
+        "articles": [
+          {"id": "KB-3105", "title": "Troubleshooting SSO Login Errors", "url": "https://help.cascade.io/articles/3105", "snippet": "Common SSO errors and their causes. For certificate issues, ensure the IdP certificate matches what is configured in Cascade settings.", "relevance_score": 0.72}
+        ]
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0005-0005-4000-8000-000005000005",
+      "trace_id": "cafe0005-0000-4000-8000-000000000005",
+      "name": "agent_turn",
+      "start_time": "2025-02-10T10:32:04.940Z",
+      "end_time": "2025-02-10T10:32:06.500Z",
+      "duration_ms": 1560.0,
+      "input": {
+        "messages": [
+          {"role": "tool_result", "tool": "search_kb", "content": {"articles": [{"id": "KB-3105", "snippet": "Common SSO errors...certificate issues..."}]}}
+        ]
+      },
+      "output": {
+        "content": null,
+        "tool_calls": [{"tool": "search_kb", "arguments": {"query": "SAML_INVALID_RESPONSE_SIGNATURE error code fix", "max_results": 3}}]
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0005-0006-4000-8000-000005000006",
+      "trace_id": "cafe0005-0000-4000-8000-000000000005",
+      "name": "tool:search_kb",
+      "start_time": "2025-02-10T10:32:06.550Z",
+      "end_time": "2025-02-10T10:32:07.250Z",
+      "duration_ms": 700.0,
+      "input": {"query": "SAML_INVALID_RESPONSE_SIGNATURE error code fix", "max_results": 3},
+      "output": {"articles": []},
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0005-0007-4000-8000-000005000007",
+      "trace_id": "cafe0005-0000-4000-8000-000000000005",
+      "name": "agent_turn",
+      "start_time": "2025-02-10T10:32:07.300Z",
+      "end_time": "2025-02-10T10:32:08.920Z",
+      "duration_ms": 1620.0,
+      "input": {
+        "messages": [
+          {"role": "tool_result", "tool": "search_kb", "content": {"articles": []}}
+        ]
+      },
+      "output": {
+        "content": null,
+        "tool_calls": [{"tool": "escalate_to_human", "arguments": {"customer_email": "ops@helixdata.io", "reason": "Customer experiencing SAML_INVALID_RESPONSE_SIGNATURE SSO error with Okta. 3 KB searches did not find a specific resolution. Requires SSO specialist review.", "priority": "high"}}]
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0005-0008-4000-8000-000005000008",
+      "trace_id": "cafe0005-0000-4000-8000-000000000005",
+      "name": "tool:escalate_to_human",
+      "start_time": "2025-02-10T10:32:08.970Z",
+      "end_time": "2025-02-10T10:32:09.650Z",
+      "duration_ms": 680.0,
+      "input": {"customer_email": "ops@helixdata.io", "reason": "SAML_INVALID_RESPONSE_SIGNATURE SSO error with Okta; 3 KB searches exhausted", "priority": "high"},
+      "output": {
+        "ticket_id": "TKT-77301",
+        "estimated_wait_minutes": 15,
+        "assigned_to": null
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0005-0009-4000-8000-000005000009",
+      "trace_id": "cafe0005-0000-4000-8000-000000000005",
+      "name": "agent_turn",
+      "start_time": "2025-02-10T10:32:09.700Z",
+      "end_time": "2025-02-10T10:32:11.080Z",
+      "duration_ms": 1380.0,
+      "input": {
+        "messages": [
+          {"role": "tool_result", "tool": "escalate_to_human", "content": {"ticket_id": "TKT-77301", "estimated_wait_minutes": 15}}
+        ]
+      },
+      "output": {
+        "content": "I've escalated your case to our SSO specialist team (Ticket TKT-77301). The estimated wait time is approximately 15 minutes. They will review your SAML configuration and the SAML_INVALID_RESPONSE_SIGNATURE error directly. I apologize for the disruption — I know your whole team is blocked. Is there anything else in the meantime?",
+        "tool_calls": []
+      },
+      "error": null,
+      "metadata": {}
+    }
+  ]
+}

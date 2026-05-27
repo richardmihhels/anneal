@@ -1,0 +1,73 @@
+{
+  "id": "cafe0009-0000-4000-8000-000000000009",
+  "agent_id": "cascade-support-v1",
+  "session_id": "sess0009-0000-4000-8000-000000000009",
+  "created_at": "2025-02-14T14:28:00Z",
+  "outcome": "failure",
+  "metadata": {
+    "label": "wrong_tool",
+    "failure_category": "wrong_tool",
+    "rationale": "User reported an incorrect seat count on their invoice, a billing discrepancy that could have been investigated with lookup_order. Agent immediately escalated without any self-service attempt, violating policy §3.2.",
+    "annotator": "human",
+    "customer_tier": "business",
+    "ticket_type": "billing_question",
+    "customer_tone": "frustrated",
+    "conversation_length": "short"
+  },
+  "spans": [
+    {
+      "id": "span0009-0001-4000-8000-000009000001",
+      "trace_id": "cafe0009-0000-4000-8000-000000000009",
+      "name": "agent_turn",
+      "start_time": "2025-02-14T14:28:00Z",
+      "end_time": "2025-02-14T14:28:01.940Z",
+      "duration_ms": 1940.0,
+      "input": {
+        "messages": [
+          {"role": "user", "content": "My January invoice shows charges for 15 seats but we only have 11 active users. I'm being overcharged by $59.60. This needs to be fixed immediately. Account: finance@prismworks.com."}
+        ]
+      },
+      "output": {
+        "content": null,
+        "tool_calls": [{"tool": "escalate_to_human", "arguments": {"customer_email": "finance@prismworks.com", "reason": "Customer disputes seat count on January invoice — charged for 15 seats, claims 11 active users.", "priority": "medium"}}]
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0009-0002-4000-8000-000009000002",
+      "trace_id": "cafe0009-0000-4000-8000-000000000009",
+      "name": "tool:escalate_to_human",
+      "start_time": "2025-02-14T14:28:01.990Z",
+      "end_time": "2025-02-14T14:28:02.710Z",
+      "duration_ms": 720.0,
+      "input": {"customer_email": "finance@prismworks.com", "reason": "Invoice seat count dispute", "priority": "medium"},
+      "output": {
+        "ticket_id": "TKT-44821",
+        "estimated_wait_minutes": 25,
+        "assigned_to": null
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0009-0003-4000-8000-000009000003",
+      "trace_id": "cafe0009-0000-4000-8000-000000000009",
+      "name": "agent_turn",
+      "start_time": "2025-02-14T14:28:02.760Z",
+      "end_time": "2025-02-14T14:28:04.080Z",
+      "duration_ms": 1320.0,
+      "input": {
+        "messages": [
+          {"role": "tool_result", "tool": "escalate_to_human", "content": {"ticket_id": "TKT-44821", "estimated_wait_minutes": 25}}
+        ]
+      },
+      "output": {
+        "content": "I've escalated your billing dispute to our billing team (Ticket TKT-44821). They'll review your January invoice and the seat count within approximately 25 minutes. I apologize for the inconvenience.",
+        "tool_calls": []
+      },
+      "error": null,
+      "metadata": {}
+    }
+  ]
+}

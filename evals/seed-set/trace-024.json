@@ -1,0 +1,115 @@
+{
+  "id": "cafe0024-0000-4000-8000-000000000024",
+  "agent_id": "cascade-support-v1",
+  "session_id": "sess0024-0000-4000-8000-000000000024",
+  "created_at": "2025-03-12T11:45:00Z",
+  "outcome": "failure",
+  "metadata": {
+    "label": "policy_violation",
+    "failure_category": "policy_violation",
+    "rationale": "Agent processed a full refund for a purchase made 45 days before the conversation date. The 30-day refund window (§1.1) had expired on approximately February 15th. The purchase_date in the lookup_order output (2025-01-26) was clearly visible but the agent did not compute the elapsed days before calling issue_refund.",
+    "annotator": "human",
+    "customer_tier": "pro",
+    "ticket_type": "refund",
+    "customer_tone": "frustrated",
+    "conversation_length": "medium"
+  },
+  "spans": [
+    {
+      "id": "span0024-0001-4000-8000-000024000001",
+      "trace_id": "cafe0024-0000-4000-8000-000000000024",
+      "name": "agent_turn",
+      "start_time": "2025-03-12T11:45:00Z",
+      "end_time": "2025-03-12T11:45:01.810Z",
+      "duration_ms": 1810.0,
+      "input": {
+        "messages": [
+          {"role": "user", "content": "I purchased your Pro plan back in January and honestly never got around to using it. I'd like a refund. Account: nina.vasquez@cloudform.io."}
+        ]
+      },
+      "output": {
+        "content": null,
+        "tool_calls": [{"tool": "lookup_order", "arguments": {"customer_email": "nina.vasquez@cloudform.io"}}]
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0024-0002-4000-8000-000024000002",
+      "trace_id": "cafe0024-0000-4000-8000-000000000024",
+      "name": "tool:lookup_order",
+      "start_time": "2025-03-12T11:45:01.860Z",
+      "end_time": "2025-03-12T11:45:02.580Z",
+      "duration_ms": 720.0,
+      "input": {"customer_email": "nina.vasquez@cloudform.io"},
+      "output": {
+        "order_id": "ORD-80104",
+        "product": "Cascade Pro",
+        "plan": "pro",
+        "amount_usd": 79.00,
+        "purchase_date": "2025-01-26",
+        "billing_cycle": "monthly",
+        "status": "active",
+        "customer_tier": "pro"
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0024-0003-4000-8000-000024000003",
+      "trace_id": "cafe0024-0000-4000-8000-000000000024",
+      "name": "agent_turn",
+      "start_time": "2025-03-12T11:45:02.630Z",
+      "end_time": "2025-03-12T11:45:04.190Z",
+      "duration_ms": 1560.0,
+      "input": {
+        "messages": [
+          {"role": "tool_result", "tool": "lookup_order", "content": {"order_id": "ORD-80104", "amount_usd": 79.00, "purchase_date": "2025-01-26"}}
+        ]
+      },
+      "output": {
+        "content": null,
+        "tool_calls": [{"tool": "issue_refund", "arguments": {"order_id": "ORD-80104", "amount_usd": 79.00, "reason": "Customer did not use the product and requests refund"}}]
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0024-0004-4000-8000-000024000004",
+      "trace_id": "cafe0024-0000-4000-8000-000000000024",
+      "name": "tool:issue_refund",
+      "start_time": "2025-03-12T11:45:04.240Z",
+      "end_time": "2025-03-12T11:45:05.080Z",
+      "duration_ms": 840.0,
+      "input": {"order_id": "ORD-80104", "amount_usd": 79.00, "reason": "Customer did not use the product and requests refund"},
+      "output": {
+        "refund_id": "REF-55892",
+        "status": "processed",
+        "amount_usd": 79.00,
+        "expected_arrival": "3-5 business days",
+        "failure_reason": null
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0024-0005-4000-8000-000024000005",
+      "trace_id": "cafe0024-0000-4000-8000-000000000024",
+      "name": "agent_turn",
+      "start_time": "2025-03-12T11:45:05.130Z",
+      "end_time": "2025-03-12T11:45:06.500Z",
+      "duration_ms": 1370.0,
+      "input": {
+        "messages": [
+          {"role": "tool_result", "tool": "issue_refund", "content": {"refund_id": "REF-55892", "status": "processed", "amount_usd": 79.00}}
+        ]
+      },
+      "output": {
+        "content": "I've processed a full refund of $79.00 for your Cascade Pro subscription (Refund ID REF-55892). You should see it back on your payment method within 3–5 business days.",
+        "tool_calls": []
+      },
+      "error": null,
+      "metadata": {}
+    }
+  ]
+}

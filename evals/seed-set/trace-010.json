@@ -1,0 +1,77 @@
+{
+  "id": "cafe0010-0000-4000-8000-000000000010",
+  "agent_id": "cascade-support-v1",
+  "session_id": "sess0010-0000-4000-8000-000000000010",
+  "created_at": "2025-02-15T11:03:00Z",
+  "outcome": "failure",
+  "metadata": {
+    "label": "wrong_tool",
+    "failure_category": "wrong_tool",
+    "rationale": "User needed the exact charge date for accounting purposes. Agent called check_subscription, which returns billing period start/end dates — not actual transaction dates. lookup_order returns the precise purchase_date needed. The customer's accounting need was not met.",
+    "annotator": "human",
+    "customer_tier": "pro",
+    "ticket_type": "billing_question",
+    "customer_tone": "neutral",
+    "conversation_length": "short"
+  },
+  "spans": [
+    {
+      "id": "span0010-0001-4000-8000-000010000001",
+      "trace_id": "cafe0010-0000-4000-8000-000000000010",
+      "name": "agent_turn",
+      "start_time": "2025-02-15T11:03:00Z",
+      "end_time": "2025-02-15T11:03:01.660Z",
+      "duration_ms": 1660.0,
+      "input": {
+        "messages": [
+          {"role": "user", "content": "Hi, I need the exact date my last payment was processed. My accountant needs the transaction date for our records. Account is billing@loopcraft.io."}
+        ]
+      },
+      "output": {
+        "content": null,
+        "tool_calls": [{"tool": "check_subscription", "arguments": {"customer_email": "billing@loopcraft.io"}}]
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0010-0002-4000-8000-000010000002",
+      "trace_id": "cafe0010-0000-4000-8000-000000000010",
+      "name": "tool:check_subscription",
+      "start_time": "2025-02-15T11:03:01.710Z",
+      "end_time": "2025-02-15T11:03:02.380Z",
+      "duration_ms": 670.0,
+      "input": {"customer_email": "billing@loopcraft.io"},
+      "output": {
+        "plan": "pro",
+        "status": "active",
+        "current_period_start": "2025-02-07",
+        "current_period_end": "2025-03-07",
+        "seats": 8,
+        "mrr_usd": 79.00,
+        "auto_renew": true
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0010-0003-4000-8000-000010000003",
+      "trace_id": "cafe0010-0000-4000-8000-000000000010",
+      "name": "agent_turn",
+      "start_time": "2025-02-15T11:03:02.430Z",
+      "end_time": "2025-02-15T11:03:03.760Z",
+      "duration_ms": 1330.0,
+      "input": {
+        "messages": [
+          {"role": "tool_result", "tool": "check_subscription", "content": {"plan": "pro", "current_period_start": "2025-02-07", "current_period_end": "2025-03-07"}}
+        ]
+      },
+      "output": {
+        "content": "Your current billing period runs from February 7 to March 7, 2025. Your monthly charge is $79.00. Does that help with your accounting records?",
+        "tool_calls": []
+      },
+      "error": null,
+      "metadata": {}
+    }
+  ]
+}

@@ -1,0 +1,116 @@
+{
+  "id": "cafe0001-0000-4000-8000-000000000001",
+  "agent_id": "cascade-support-v1",
+  "session_id": "sess0001-0000-4000-8000-000000000001",
+  "created_at": "2025-02-01T14:23:00Z",
+  "outcome": "success",
+  "metadata": {
+    "label": "success",
+    "failure_category": null,
+    "rationale": "Agent called lookup_order first, confirmed purchase was 7 days ago (within 30-day window), then issued the full refund correctly.",
+    "annotator": "human",
+    "customer_tier": "pro",
+    "ticket_type": "refund",
+    "customer_tone": "neutral",
+    "conversation_length": "short"
+  },
+  "spans": [
+    {
+      "id": "span0001-0001-4000-8000-000001000001",
+      "trace_id": "cafe0001-0000-4000-8000-000000000001",
+      "name": "agent_turn",
+      "start_time": "2025-02-01T14:23:00Z",
+      "end_time": "2025-02-01T14:23:01.820Z",
+      "duration_ms": 1820.0,
+      "input": {
+        "messages": [
+          {"role": "user", "content": "Hi, I purchased the Cascade Pro plan last week but my team has not been able to log in at all due to SSO configuration issues on your end. I would like a full refund. My email is marcos.reyes@buildfast.io."}
+        ]
+      },
+      "output": {
+        "content": null,
+        "tool_calls": [{"tool": "lookup_order", "arguments": {"customer_email": "marcos.reyes@buildfast.io"}}]
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0001-0002-4000-8000-000001000002",
+      "trace_id": "cafe0001-0000-4000-8000-000000000001",
+      "name": "tool:lookup_order",
+      "start_time": "2025-02-01T14:23:01.870Z",
+      "end_time": "2025-02-01T14:23:02.610Z",
+      "duration_ms": 740.0,
+      "input": {"customer_email": "marcos.reyes@buildfast.io"},
+      "output": {
+        "order_id": "ORD-88341",
+        "product": "Cascade Pro",
+        "plan": "pro",
+        "amount_usd": 79.00,
+        "purchase_date": "2025-01-25",
+        "billing_cycle": "monthly",
+        "status": "active",
+        "customer_tier": "pro"
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0001-0003-4000-8000-000001000003",
+      "trace_id": "cafe0001-0000-4000-8000-000000000001",
+      "name": "agent_turn",
+      "start_time": "2025-02-01T14:23:02.660Z",
+      "end_time": "2025-02-01T14:23:04.210Z",
+      "duration_ms": 1550.0,
+      "input": {
+        "messages": [
+          {"role": "user", "content": "Hi, I purchased the Cascade Pro plan last week but my team has not been able to log in at all due to SSO configuration issues on your end. I would like a full refund. My email is marcos.reyes@buildfast.io."},
+          {"role": "tool_result", "tool": "lookup_order", "content": {"order_id": "ORD-88341", "plan": "pro", "amount_usd": 79.00, "purchase_date": "2025-01-25"}}
+        ]
+      },
+      "output": {
+        "content": null,
+        "tool_calls": [{"tool": "issue_refund", "arguments": {"order_id": "ORD-88341", "amount_usd": 79.00, "reason": "Product inaccessible due to SSO issues; within 30-day refund window"}}]
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0001-0004-4000-8000-000001000004",
+      "trace_id": "cafe0001-0000-4000-8000-000000000001",
+      "name": "tool:issue_refund",
+      "start_time": "2025-02-01T14:23:04.260Z",
+      "end_time": "2025-02-01T14:23:05.710Z",
+      "duration_ms": 1450.0,
+      "input": {"order_id": "ORD-88341", "amount_usd": 79.00, "reason": "Product inaccessible due to SSO issues; within 30-day refund window"},
+      "output": {
+        "refund_id": "REF-44210",
+        "status": "processed",
+        "amount_usd": 79.00,
+        "expected_arrival": "3-5 business days",
+        "failure_reason": null
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0001-0005-4000-8000-000001000005",
+      "trace_id": "cafe0001-0000-4000-8000-000000000001",
+      "name": "agent_turn",
+      "start_time": "2025-02-01T14:23:05.760Z",
+      "end_time": "2025-02-01T14:23:07.090Z",
+      "duration_ms": 1330.0,
+      "input": {
+        "messages": [
+          {"role": "tool_result", "tool": "issue_refund", "content": {"refund_id": "REF-44210", "status": "processed", "amount_usd": 79.00}}
+        ]
+      },
+      "output": {
+        "content": "I've processed a full refund of $79.00 for your Cascade Pro subscription (Order ORD-88341, Refund ID REF-44210). You should see the amount returned to your original payment method within 3–5 business days. I'm sorry the platform didn't work for your team. Is there anything else I can help with?",
+        "tool_calls": []
+      },
+      "error": null,
+      "metadata": {}
+    }
+  ]
+}

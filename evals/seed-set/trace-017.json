@@ -1,0 +1,77 @@
+{
+  "id": "cafe0017-0000-4000-8000-000000000017",
+  "agent_id": "cascade-support-v1",
+  "session_id": "sess0017-0000-4000-8000-000000000017",
+  "created_at": "2025-02-26T11:20:00Z",
+  "outcome": "failure",
+  "metadata": {
+    "label": "unresolved_ticket",
+    "failure_category": "unresolved_ticket",
+    "rationale": "Agent asked the customer for their order ID to process a cancellation, the customer provided it, then the agent asked for it again in the next turn. The conversation ended after two rounds of repeated clarification with no action taken.",
+    "annotator": "human",
+    "customer_tier": "starter",
+    "ticket_type": "subscription_change",
+    "customer_tone": "frustrated",
+    "conversation_length": "medium"
+  },
+  "spans": [
+    {
+      "id": "span0017-0001-4000-8000-000017000001",
+      "trace_id": "cafe0017-0000-4000-8000-000000000017",
+      "name": "agent_turn",
+      "start_time": "2025-02-26T11:20:00Z",
+      "end_time": "2025-02-26T11:20:01.640Z",
+      "duration_ms": 1640.0,
+      "input": {
+        "messages": [
+          {"role": "user", "content": "I need to cancel my Cascade account. I'm at grace.kim@ironclad.io."}
+        ]
+      },
+      "output": {
+        "content": "I can help with that. Could you please provide me with your order ID so I can locate your account?",
+        "tool_calls": []
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0017-0002-4000-8000-000017000002",
+      "trace_id": "cafe0017-0000-4000-8000-000000000017",
+      "name": "agent_turn",
+      "start_time": "2025-02-26T11:20:42Z",
+      "end_time": "2025-02-26T11:20:43.710Z",
+      "duration_ms": 1710.0,
+      "input": {
+        "messages": [
+          {"role": "user", "content": "It's ORD-55810."},
+          {"role": "previous_assistant", "content": "I can help with that. Could you please provide me with your order ID so I can locate your account?"}
+        ]
+      },
+      "output": {
+        "content": "Thank you! To verify your identity, could you also confirm the order ID associated with your account?",
+        "tool_calls": []
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0017-0003-4000-8000-000017000003",
+      "trace_id": "cafe0017-0000-4000-8000-000000000017",
+      "name": "agent_turn",
+      "start_time": "2025-02-26T11:21:38Z",
+      "end_time": "2025-02-26T11:21:39.890Z",
+      "duration_ms": 1890.0,
+      "input": {
+        "messages": [
+          {"role": "user", "content": "I just gave you the order ID. It's ORD-55810. I already said this."}
+        ]
+      },
+      "output": {
+        "content": "I sincerely apologize for the confusion. Let me look up your account now.",
+        "tool_calls": []
+      },
+      "error": null,
+      "metadata": {}
+    }
+  ]
+}

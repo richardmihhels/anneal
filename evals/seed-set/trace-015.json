@@ -1,0 +1,135 @@
+{
+  "id": "cafe0015-0000-4000-8000-000000000015",
+  "agent_id": "cascade-support-v1",
+  "session_id": "sess0015-0000-4000-8000-000000000015",
+  "created_at": "2025-02-24T10:08:00Z",
+  "outcome": "failure",
+  "metadata": {
+    "label": "unresolved_ticket",
+    "failure_category": "unresolved_ticket",
+    "rationale": "Agent searched the KB three times for an integration error without finding a resolution, then ended the conversation by directing the user to the help center instead of escalating. Policy §3.1d requires escalation after 3 failed tool calls.",
+    "annotator": "human",
+    "customer_tier": "pro",
+    "ticket_type": "account_issue",
+    "customer_tone": "frustrated",
+    "conversation_length": "long"
+  },
+  "spans": [
+    {
+      "id": "span0015-0001-4000-8000-000015000001",
+      "trace_id": "cafe0015-0000-4000-8000-000000000015",
+      "name": "agent_turn",
+      "start_time": "2025-02-24T10:08:00Z",
+      "end_time": "2025-02-24T10:08:01.780Z",
+      "duration_ms": 1780.0,
+      "input": {
+        "messages": [
+          {"role": "user", "content": "The Cascade Slack integration keeps failing. Every time I try to send a notification it throws error code INT_SLACK_401. I've checked my Slack token and it's valid. Account is mike.chen@runwayops.com."}
+        ]
+      },
+      "output": {
+        "content": null,
+        "tool_calls": [{"tool": "search_kb", "arguments": {"query": "Slack integration error INT_SLACK_401", "max_results": 3}}]
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0015-0002-4000-8000-000015000002",
+      "trace_id": "cafe0015-0000-4000-8000-000000000015",
+      "name": "tool:search_kb",
+      "start_time": "2025-02-24T10:08:01.830Z",
+      "end_time": "2025-02-24T10:08:02.520Z",
+      "duration_ms": 690.0,
+      "input": {"query": "Slack integration error INT_SLACK_401", "max_results": 3},
+      "output": {
+        "articles": [
+          {"id": "KB-4011", "title": "Setting Up Slack Notifications", "url": "https://help.cascade.io/articles/4011", "snippet": "To enable Slack notifications, go to Settings → Integrations → Slack and paste your Bot User OAuth Token.", "relevance_score": 0.58}
+        ]
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0015-0003-4000-8000-000015000003",
+      "trace_id": "cafe0015-0000-4000-8000-000000000015",
+      "name": "agent_turn",
+      "start_time": "2025-02-24T10:08:02.570Z",
+      "end_time": "2025-02-24T10:08:04.130Z",
+      "duration_ms": 1560.0,
+      "input": {
+        "messages": [
+          {"role": "tool_result", "tool": "search_kb", "content": {"articles": [{"snippet": "To enable Slack notifications...paste your Bot User OAuth Token"}]}}
+        ]
+      },
+      "output": {
+        "content": null,
+        "tool_calls": [{"tool": "search_kb", "arguments": {"query": "INT_SLACK_401 token authentication failure integration", "max_results": 3}}]
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0015-0004-4000-8000-000015000004",
+      "trace_id": "cafe0015-0000-4000-8000-000000000015",
+      "name": "tool:search_kb",
+      "start_time": "2025-02-24T10:08:04.180Z",
+      "end_time": "2025-02-24T10:08:04.890Z",
+      "duration_ms": 710.0,
+      "input": {"query": "INT_SLACK_401 token authentication failure integration", "max_results": 3},
+      "output": {"articles": []},
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0015-0005-4000-8000-000015000005",
+      "trace_id": "cafe0015-0000-4000-8000-000000000015",
+      "name": "agent_turn",
+      "start_time": "2025-02-24T10:08:04.940Z",
+      "end_time": "2025-02-24T10:08:06.510Z",
+      "duration_ms": 1570.0,
+      "input": {
+        "messages": [
+          {"role": "tool_result", "tool": "search_kb", "content": {"articles": []}}
+        ]
+      },
+      "output": {
+        "content": null,
+        "tool_calls": [{"tool": "search_kb", "arguments": {"query": "Slack webhook 401 unauthorized error troubleshoot", "max_results": 3}}]
+      },
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0015-0006-4000-8000-000015000006",
+      "trace_id": "cafe0015-0000-4000-8000-000000000015",
+      "name": "tool:search_kb",
+      "start_time": "2025-02-24T10:08:06.560Z",
+      "end_time": "2025-02-24T10:08:07.270Z",
+      "duration_ms": 710.0,
+      "input": {"query": "Slack webhook 401 unauthorized error troubleshoot", "max_results": 3},
+      "output": {"articles": []},
+      "error": null,
+      "metadata": {}
+    },
+    {
+      "id": "span0015-0007-4000-8000-000015000007",
+      "trace_id": "cafe0015-0000-4000-8000-000000000015",
+      "name": "agent_turn",
+      "start_time": "2025-02-24T10:08:07.320Z",
+      "end_time": "2025-02-24T10:08:08.810Z",
+      "duration_ms": 1490.0,
+      "input": {
+        "messages": [
+          {"role": "tool_result", "tool": "search_kb", "content": {"articles": []}}
+        ]
+      },
+      "output": {
+        "content": "I wasn't able to find specific documentation on the INT_SLACK_401 error code. For further assistance, please visit our help center at support.cascade.io or post in our community forum at community.cascade.io. Our engineering team may have more context on this error.",
+        "tool_calls": []
+      },
+      "error": null,
+      "metadata": {}
+    }
+  ]
+}
