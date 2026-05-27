@@ -5,6 +5,8 @@ requires-python = ">=3.12"
 dependencies = [
     "pydantic>=2.7",
     "anneal-shared",
+    "apscheduler>=3.11.2",
+    "anneal-core",
 ]
 
 [build-system]
@@ -16,3 +18,4 @@ packages = ["src/worker"]
 
 [tool.uv.sources]
 anneal-shared = { workspace = true }
+anneal-core = { workspace = true }
