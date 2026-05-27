@@ -1,4 +1,5 @@
 from shared.models import (
+    Alarm,
     EvalResult,
     FailureCluster,
     OptimizationRun,
@@ -8,6 +9,7 @@ from shared.models import (
 )
 
 __all__ = [
+    "Alarm",
     "EvalResult",
     "FailureCluster",
     "OptimizationRun",

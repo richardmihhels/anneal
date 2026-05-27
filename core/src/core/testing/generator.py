@@ -482,12 +482,15 @@ def generate_trace(
     category: FailureCategory = "success",
     *,
     seed: int | None = None,
+    timestamp: datetime | None = None,
 ) -> Trace:
     """Generate a synthetic Cascade support trace for the given failure category."""
     rng = random.Random(seed)
     customer = rng.choice(_CUSTOMERS)
     trace_id = str(uuid.uuid4())
-    t0 = datetime.now(UTC).replace(microsecond=0) - timedelta(hours=rng.randint(1, 48))
+    t0 = timestamp if timestamp is not None else (
+        datetime.now(UTC).replace(microsecond=0) - timedelta(hours=rng.randint(1, 48))
+    )
 
     spans = _GENERATORS[category](trace_id, t0, customer)
     outcome: Literal["success", "failure", "unknown"] = "success" if category == "success" else "failure"
@@ -530,3 +533,60 @@ def generate_dataset(
     rng = random.Random(seed)
     chosen: list[FailureCategory] = rng.choices(categories, weights=weights, k=n)
     return [generate_trace(cat, seed=seed + i) for i, cat in enumerate(chosen)]
+
+
+def generate_dataset_with_spike(
+    n_baseline: int = 100,
+    n_spike: int = 50,
+    spike_category: FailureCategory = "hallucinated_policy",
+    spike_rate: float = 0.60,
+    *,
+    seed: int = 42,
+    window_hours: int = 24,
+) -> list[Trace]:
+    """Generate a trace stream with a baseline period followed by a failure spike.
+
+    Baseline traces span [now - 2*window_hours, now - window_hours].
+    Spike traces span [now - window_hours, now].
+    During the spike period, spike_category makes up spike_rate of all traces.
+
+    Designed to pair with AlarmDetector(window_hours=window_hours).
+    """
+    now = datetime.now(UTC).replace(microsecond=0)
+    baseline_start = now - timedelta(hours=2 * window_hours)
+    spike_start = now - timedelta(hours=window_hours)
+
+    rng = random.Random(seed)
+    traces: list[Trace] = []
+
+    # Baseline period — normal failure distribution
+    baseline_dist: dict[FailureCategory, float] = {
+        "success": 0.50,
+        "wrong_tool": 0.10,
+        "hallucinated_policy": 0.10,
+        "unresolved_ticket": 0.10,
+        "premature_escalation": 0.10,
+        "policy_violation": 0.05,
+        "scope_creep": 0.05,
+    }
+    baseline_categories = list(baseline_dist.keys())
+    baseline_weights = list(baseline_dist.values())
+    chosen_baseline: list[FailureCategory] = rng.choices(baseline_categories, weights=baseline_weights, k=n_baseline)
+    for i, cat in enumerate(chosen_baseline):
+        offset_s = rng.randint(0, int(window_hours * 3600) - 1)
+        ts = baseline_start + timedelta(seconds=offset_s)
+        traces.append(generate_trace(cat, seed=seed + i, timestamp=ts))
+
+    # Spike period — elevated rate for spike_category
+    non_spike_categories: list[FailureCategory] = [c for c in baseline_dist if c != spike_category]
+    non_spike_weights = [baseline_dist[c] for c in non_spike_categories]
+    for i in range(n_spike):
+        offset_s = rng.randint(0, int(window_hours * 3600) - 1)
+        ts = spike_start + timedelta(seconds=offset_s)
+        if rng.random() < spike_rate:
+            cat = spike_category
+        else:
+            cat = rng.choices(non_spike_categories, weights=non_spike_weights, k=1)[0]
+        traces.append(generate_trace(cat, seed=seed + n_baseline + i, timestamp=ts))
+
+    return traces

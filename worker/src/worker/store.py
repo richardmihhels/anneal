@@ -4,7 +4,7 @@ import json
 import logging
 from typing import Any, Protocol, runtime_checkable
 
-from shared.models import OptimizationRun
+from shared.models import EvalResult, OptimizationRun
 
 from worker.models import RunEvent
 
@@ -37,6 +37,23 @@ CREATE TABLE IF NOT EXISTS run_events (
 );
 
 CREATE INDEX IF NOT EXISTS run_events_run_id_ts ON run_events(run_id, ts);
+
+CREATE TABLE IF NOT EXISTS eval_results (
+    id                   TEXT PRIMARY KEY,
+    optimization_run_id  TEXT REFERENCES optimization_runs(id) ON DELETE CASCADE,
+    proposed_change_id   TEXT,
+    run_at               TIMESTAMPTZ NOT NULL,
+    baseline_score       DOUBLE PRECISION NOT NULL,
+    candidate_score      DOUBLE PRECISION NOT NULL,
+    delta                DOUBLE PRECISION NOT NULL,
+    p_value              DOUBLE PRECISION NOT NULL,
+    sample_size          INT NOT NULL,
+    passed               BOOLEAN NOT NULL,
+    judge_agreement_rate DOUBLE PRECISION NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS eval_results_run_id_idx ON eval_results (optimization_run_id);
+CREATE INDEX IF NOT EXISTS eval_results_run_at_idx ON eval_results (run_at DESC);
 """
 
 
@@ -47,6 +64,7 @@ class RunStore(Protocol):
     async def log_event(self, event: RunEvent) -> None: ...
     async def get_run(self, run_id: str) -> OptimizationRun | None: ...
     async def list_events(self, run_id: str) -> list[RunEvent]: ...
+    async def save_eval_result(self, result: EvalResult) -> None: ...
 
 
 class FakeRunStore:
@@ -55,6 +73,7 @@ class FakeRunStore:
     def __init__(self) -> None:
         self._runs: dict[str, OptimizationRun] = {}
         self._events: list[RunEvent] = []
+        self._eval_results: list[EvalResult] = []
 
     async def create_run(self, run: OptimizationRun) -> None:
         self._runs[run.id] = run
@@ -78,6 +97,9 @@ class FakeRunStore:
     async def list_events(self, run_id: str) -> list[RunEvent]:
         return [e for e in self._events if e.run_id == run_id]
 
+    async def save_eval_result(self, result: EvalResult) -> None:
+        self._eval_results.append(result)
+
     @property
     def all_runs(self) -> list[OptimizationRun]:
         return list(self._runs.values())
@@ -85,6 +107,10 @@ class FakeRunStore:
     @property
     def all_events(self) -> list[RunEvent]:
         return list(self._events)
+
+    @property
+    def all_eval_results(self) -> list[EvalResult]:
+        return list(self._eval_results)
 
 
 class PostgresRunStore:
@@ -197,3 +223,28 @@ class PostgresRunStore:
             )
             for row in rows
         ]
+
+    async def save_eval_result(self, result: EvalResult) -> None:
+        pool = await self._get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO eval_results
+                    (id, optimization_run_id, proposed_change_id, run_at,
+                     baseline_score, candidate_score, delta, p_value,
+                     sample_size, passed, judge_agreement_rate)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                ON CONFLICT (id) DO NOTHING
+                """,
+                result.id,
+                result.optimization_run_id,
+                result.proposed_change_id,
+                result.run_at,
+                result.baseline_score,
+                result.candidate_score,
+                result.delta,
+                result.p_value,
+                result.sample_size,
+                result.passed,
+                result.judge_agreement_rate,
+            )

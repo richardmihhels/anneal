@@ -71,7 +71,8 @@ class ProposedChange(BaseModel):
 
 class EvalResult(BaseModel):
     id: str = Field(default_factory=_uuid)
-    proposed_change_id: str
+    optimization_run_id: str | None = None
+    proposed_change_id: str | None = None
     run_at: datetime = Field(default_factory=_now)
     baseline_score: float
     candidate_score: float
@@ -80,3 +81,17 @@ class EvalResult(BaseModel):
     sample_size: int
     passed: bool
     judge_agreement_rate: float
+
+
+class Alarm(BaseModel):
+    id: str = Field(default_factory=_uuid)
+    organization_id: str = "org_demo"
+    agent_id: str
+    category: str
+    baseline_rate: float
+    current_rate: float
+    window_hours: int
+    affected_trace_count: int
+    first_detected: datetime = Field(default_factory=_now)
+    cause_hypothesis: str
+    notified: bool = False

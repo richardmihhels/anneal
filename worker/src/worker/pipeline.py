@@ -12,7 +12,7 @@ from core.eval.split import split
 from core.github.client import GitHubGateway
 from core.github.publisher import PRPublisher
 from core.optimizer.engine import Optimizer
-from shared.models import OptimizationRun, Trace
+from shared.models import EvalResult, OptimizationRun, Trace
 
 from worker.models import CustomerConfig, PipelineComponents, RunEvent
 from worker.store import RunStore
@@ -139,6 +139,33 @@ async def run_optimization_cycle(
             holdout=holdout,
             run_id=run.id,
         )
+
+        # Persist eval results for health time series — every cycle, not just when PRs ship.
+        eval_results_to_save = [
+            er.model_copy(update={"optimization_run_id": run.id})
+            for er in opt_result.eval_results
+        ]
+        if not eval_results_to_save:
+            # Silent week: run baseline self-eval to anchor the time series.
+            try:
+                silent_report = harness.evaluate(baseline, baseline, holdout)
+                eval_results_to_save.append(
+                    EvalResult(
+                        optimization_run_id=run.id,
+                        baseline_score=silent_report.baseline_score,
+                        candidate_score=silent_report.baseline_score,
+                        delta=0.0,
+                        p_value=1.0,
+                        sample_size=silent_report.significance.sample_size,
+                        passed=False,
+                        judge_agreement_rate=silent_report.judge_agreement_rate,
+                    )
+                )
+            except Exception as exc:
+                logger.warning("Baseline self-eval failed (health time series will have a gap): %s", exc)
+
+        for er in eval_results_to_save:
+            await store.save_eval_result(er)
 
         run = run.model_copy(update={"proposed_change_ids": [c.id for c in opt_result.proposed_changes]})
         await store.update_run(run)
