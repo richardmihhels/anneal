@@ -77,7 +77,7 @@ export function CategoryBreakdown({ points }: Props) {
       <p className="mb-4 text-xs text-zinc-600">
         Cluster size per week. Falling is good.
       </p>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
         {series.map(({ category, sizes, latest }) => {
           const direction = trend(sizes);
           return (

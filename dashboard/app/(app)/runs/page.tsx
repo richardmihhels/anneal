@@ -9,7 +9,7 @@ export default async function RunsPage() {
   const held = runs.reduce((sum, run) => sum + run.gate.rejected, 0);
 
   return (
-    <div className="max-w-5xl">
+    <div className="max-w-7xl">
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold text-zinc-100">Runs</h1>

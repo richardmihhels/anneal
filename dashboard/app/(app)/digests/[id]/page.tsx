@@ -22,7 +22,7 @@ export default async function DigestPage({ params }: PageProps) {
   if (!digest) notFound();
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-4xl">
       <div className="mb-6">
         <Link
           href="/runs"

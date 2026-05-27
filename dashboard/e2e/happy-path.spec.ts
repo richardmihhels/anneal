@@ -12,6 +12,8 @@ test("dashboard happy path", async ({ page }) => {
   await expect(
     page.getByRole("img", { name: "Eval score trend" }),
   ).toBeVisible();
+  await expect(page.getByText("Current score")).toBeVisible();
+  await expect(page.getByText("Operational readout")).toBeVisible();
   await expect(page.getByText("Failure categories")).toBeVisible();
 
   // Alarm should be visible (seed data has one alarm)

@@ -33,9 +33,9 @@ function buildPath(points: { x: number; y: number }[]): string {
 
 export function EvalScoreTrend({ points }: Props) {
   const width = 560;
-  const height = 124;
+  const height = 148;
   const chartTop = 8;
-  const chartHeight = 72;
+  const chartHeight = 92;
   const maxIndex = Math.max(points.length - 1, 1);
 
   const chartPoints: ChartPoint[] = points.map((point, index) => {
@@ -95,7 +95,7 @@ export function EvalScoreTrend({ points }: Props) {
         role="img"
         aria-label="Eval score trend"
         viewBox={`0 0 ${width} ${height}`}
-        className="h-36 w-full overflow-visible text-zinc-700"
+        className="h-40 w-full overflow-visible text-zinc-700 lg:h-48"
       >
         <line
           x1="12"
