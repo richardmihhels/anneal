@@ -3,6 +3,7 @@ import { EvalScoreTrend } from "@/components/eval-score-trend";
 import { getOverviewStats, listRuns } from "@/lib/data";
 import { StatCard } from "@/components/stat-card";
 import { RunStatusBadge } from "@/components/run-status-badge";
+import { requireSession } from "@/lib/auth";
 
 function relativeTime(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
@@ -59,9 +60,10 @@ function percent(value: number | null): string {
   return value === null ? "—" : `${Math.round(value * 100)}%`;
 }
 
-export default function OverviewPage() {
-  const stats = getOverviewStats();
-  const runs = listRuns().slice(0, 5);
+export default async function OverviewPage() {
+  const session = await requireSession();
+  const stats = getOverviewStats(session.organizationId);
+  const runs = listRuns(session.organizationId).slice(0, 5);
   const sparkPrs = stats.weeklyActivity.map((w) => w.prs);
   const evalSpark = stats.evalScoreTrend
     .map((point) => point.candidate_score)
@@ -72,7 +74,7 @@ export default function OverviewPage() {
       <div className="mb-8">
         <h1 className="text-xl font-semibold text-zinc-100">Overview</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          cascade-support-v1 &nbsp;·&nbsp; last {stats.totalRuns} weeks
+          {session.organizationName} &nbsp;·&nbsp; last {stats.totalRuns} weeks
         </p>
       </div>
 

@@ -5,8 +5,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from shared.models import OptimizationRun, Trace
-
 from core.clustering.pipeline import ClusterPipeline
 from core.eval.harness import EvalHarness
 from core.eval.runner import AgentConfig
@@ -14,6 +12,8 @@ from core.eval.split import split
 from core.github.client import GitHubGateway
 from core.github.publisher import PRPublisher
 from core.optimizer.engine import Optimizer
+from shared.models import OptimizationRun, Trace
+
 from worker.models import CustomerConfig, PipelineComponents, RunEvent
 from worker.store import RunStore
 
@@ -44,7 +44,11 @@ async def run_optimization_cycle(
     the run is marked failed. This ensures a bad optimization cycle can never
     open a PR.
     """
-    run = OptimizationRun(agent_id=customer.agent_id, status="running")
+    run = OptimizationRun(
+        organization_id=customer.organization_id,
+        agent_id=customer.agent_id,
+        status="running",
+    )
     await store.create_run(run)
     await _emit(store, run.id, "init", "started", f"Optimization cycle started for agent {customer.agent_id}")
 
@@ -55,8 +59,7 @@ async def run_optimization_cycle(
             run.id,
             "init",
             "info",
-            f"Not enough traces to optimize ({len(traces)} < {MIN_TRACES_FOR_OPTIMIZATION}). "
-            f"Skipping this cycle.",
+            f"Not enough traces to optimize ({len(traces)} < {MIN_TRACES_FOR_OPTIMIZATION}). Skipping this cycle.",
             metadata={"trace_count": len(traces), "min_required": MIN_TRACES_FOR_OPTIMIZATION},
         )
         run = run.model_copy(update={"status": "completed"})
@@ -66,7 +69,10 @@ async def run_optimization_cycle(
 
     # ── clustering ────────────────────────────────────────────────────────────
     await _emit(
-        store, run.id, "clustering", "started",
+        store,
+        run.id,
+        "clustering",
+        "started",
         f"Clustering {len(traces)} traces",
         metadata={"trace_count": len(traces)},
     )
@@ -80,7 +86,10 @@ async def run_optimization_cycle(
         run = run.model_copy(update={"cluster_ids": [c.id for c in clusters]})
         await store.update_run(run)
         await _emit(
-            store, run.id, "clustering", "completed",
+            store,
+            run.id,
+            "clustering",
+            "completed",
             f"Found {len(clusters)} failure cluster(s)",
             metadata={"cluster_count": len(clusters), "cluster_labels": [c.label for c in clusters]},
         )
@@ -95,7 +104,10 @@ async def run_optimization_cycle(
 
     # ── optimization ──────────────────────────────────────────────────────────
     await _emit(
-        store, run.id, "optimization", "started",
+        store,
+        run.id,
+        "optimization",
+        "started",
         f"Optimizing {len(clusters)} cluster(s) (budget={components.mutation_budget})",
         metadata={"cluster_count": len(clusters)},
     )
@@ -128,12 +140,13 @@ async def run_optimization_cycle(
             run_id=run.id,
         )
 
-        run = run.model_copy(
-            update={"proposed_change_ids": [c.id for c in opt_result.proposed_changes]}
-        )
+        run = run.model_copy(update={"proposed_change_ids": [c.id for c in opt_result.proposed_changes]})
         await store.update_run(run)
         await _emit(
-            store, run.id, "optimization", "completed",
+            store,
+            run.id,
+            "optimization",
+            "completed",
             f"{len(opt_result.proposed_changes)} candidate(s) passed the eval gate "
             f"({len(clusters) - len(opt_result.proposed_changes)} rejected)",
             metadata={
@@ -147,7 +160,10 @@ async def run_optimization_cycle(
 
     # ── publishing ────────────────────────────────────────────────────────────
     await _emit(
-        store, run.id, "publishing", "started",
+        store,
+        run.id,
+        "publishing",
+        "started",
         f"Publishing {len(opt_result.proposed_changes)} change(s) to {customer.repo}",
     )
     try:
@@ -161,7 +177,10 @@ async def run_optimization_cycle(
 
         pr_urls = [pr.url for pr in pub_result.opened]
         await _emit(
-            store, run.id, "publishing", "completed",
+            store,
+            run.id,
+            "publishing",
+            "completed",
             pub_result.silence_report or f"Opened {len(pub_result.opened)} PR(s)",
             metadata={
                 "prs_opened": len(pub_result.opened),
@@ -212,7 +231,10 @@ async def _fail(
     run = run.model_copy(update={"status": "failed"})
     await store.update_run(run)
     await _emit(
-        store, run.id, stage, "failed",
+        store,
+        run.id,
+        stage,
+        "failed",
         f"Stage '{stage}' failed: {exc}",
         metadata={"error": str(exc), "error_type": type(exc).__name__},
     )

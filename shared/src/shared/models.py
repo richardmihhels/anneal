@@ -30,6 +30,7 @@ class Span(BaseModel):
 
 class Trace(BaseModel):
     id: str = Field(default_factory=_uuid)
+    organization_id: str = "org_demo"
     agent_id: str
     session_id: str
     created_at: datetime = Field(default_factory=_now)
@@ -50,6 +51,7 @@ class FailureCluster(BaseModel):
 
 class OptimizationRun(BaseModel):
     id: str = Field(default_factory=_uuid)
+    organization_id: str = "org_demo"
     agent_id: str
     created_at: datetime = Field(default_factory=_now)
     status: Literal["pending", "running", "completed", "failed"] = "pending"

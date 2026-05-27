@@ -4,16 +4,13 @@ from __future__ import annotations
 
 import asyncio
 
-import pytest
 from core.eval.runner import AgentConfig
-from core.eval.scoring import EvalJudge
 from core.github.client import FakeGitHubGateway
 from core.testing.generator import generate_dataset
 from shared.models import Trace
 from worker.models import CustomerConfig, PipelineComponents, fake_components
 from worker.pipeline import MIN_TRACES_FOR_OPTIMIZATION, run_optimization_cycle
 from worker.store import FakeRunStore
-
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -27,6 +24,7 @@ def _make_customer(
     seed_contexts = ["issue resolved successfully"] * 10 + ["I cannot help with that"] * 10
     seed_labels = ["pass"] * 10 + ["fail"] * 10
     return CustomerConfig(
+        organization_id="org_demo",
         agent_id="cascade-support-v1",
         repo=repo,
         config_path=config_path,

@@ -29,12 +29,10 @@
           "type": "number"
         },
         "input": {
-          "additionalProperties": true,
           "title": "Input",
           "type": "object"
         },
         "output": {
-          "additionalProperties": true,
           "title": "Output",
           "type": "object"
         },
@@ -51,7 +49,6 @@
           "title": "Error"
         },
         "metadata": {
-          "additionalProperties": true,
           "title": "Metadata",
           "type": "object"
         }
@@ -70,6 +67,11 @@
   "properties": {
     "id": {
       "title": "Id",
+      "type": "string"
+    },
+    "organization_id": {
+      "default": "org_demo",
+      "title": "Organization Id",
       "type": "string"
     },
     "agent_id": {
@@ -103,7 +105,6 @@
       "type": "string"
     },
     "metadata": {
-      "additionalProperties": true,
       "title": "Metadata",
       "type": "object"
     }

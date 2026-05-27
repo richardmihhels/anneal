@@ -4,6 +4,11 @@
       "title": "Id",
       "type": "string"
     },
+    "organization_id": {
+      "default": "org_demo",
+      "title": "Organization Id",
+      "type": "string"
+    },
     "agent_id": {
       "title": "Agent Id",
       "type": "string"

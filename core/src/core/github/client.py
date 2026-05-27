@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import base64
 from dataclasses import dataclass, field
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 
 @runtime_checkable
@@ -87,7 +87,16 @@ class FakeGitHubGateway:
     ) -> str:
         url = f"https://github.com/{repo}/pull/{len(self._prs) + 1}"
         self._prs.append(
-            {"repo": repo, "title": title, "body": body, "head": head, "base": base, "label": label, "url": url, "state": "open"}
+            {
+                "repo": repo,
+                "title": title,
+                "body": body,
+                "head": head,
+                "base": base,
+                "label": label,
+                "url": url,
+                "state": "open",
+            }
         )
         return url
 
@@ -117,9 +126,7 @@ class GitHubAppClient:
         auth = github.Auth.AppAuth(app_id, private_key)
         self._integration = github.GithubIntegration(auth=auth)
 
-    def _repo(self, repo: str) -> github.Repository.Repository:  # type: ignore[name-defined]
-        import github
-
+    def _repo(self, repo: str) -> Any:
         owner, name = repo.split("/", 1)
         installation = self._integration.get_repo_installation(owner, name)
         g = self._integration.get_github_for_installation(installation.id)
@@ -171,7 +178,6 @@ class GitHubAppClient:
         return str(pr.html_url)
 
     def find_open_pr(self, repo: str, label: str) -> str | None:
-        import github
 
         r = self._repo(repo)
         prs = r.get_pulls(state="open")

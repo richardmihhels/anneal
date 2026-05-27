@@ -36,7 +36,8 @@
         "d09080b2-6c4f-4904-8740-37b35c3dbdd3",
         "0a8cf8fb-3f75-4776-acd5-f19a450473dd",
         "15134450-fef1-4bb8-96f9-c0778f94179c"
-      ]
+      ],
+      "organization_id": "org_demo"
     },
     {
       "id": "72355ac9-2ef3-4a2b-b674-1a58a0a9d23e",
@@ -59,7 +60,8 @@
         "fa59a5d7-1beb-4c47-98a4-5f2374a09674",
         "8ab0b639-40a9-4028-ae90-898f1f2fde8c"
       ],
-      "proposed_change_ids": []
+      "proposed_change_ids": [],
+      "organization_id": "org_demo"
     },
     {
       "id": "8c387cd5-df95-48bf-875d-7332b0e75802",
@@ -97,7 +99,8 @@
         "a4c6e808-57df-4e2f-8801-fe0684fa541d",
         "fd0b0380-d1e8-47dd-96c9-0c4300ecf59b",
         "98acbc59-a1e5-4725-9c26-ffab967ca09c"
-      ]
+      ],
+      "organization_id": "org_demo"
     },
     {
       "id": "44baa37c-1be6-4ebe-8678-8673d28897c3",
@@ -105,7 +108,8 @@
       "created_at": "2026-05-05T09:46:00Z",
       "status": "failed",
       "cluster_ids": [],
-      "proposed_change_ids": []
+      "proposed_change_ids": [],
+      "organization_id": "org_demo"
     },
     {
       "id": "e33cbfc3-8f4d-4ea1-9503-b233adc234f0",
@@ -141,7 +145,8 @@
         "8c50d623-4c94-4b40-9907-d1fdd41e08ea",
         "fd787a9b-f69b-4e5e-a329-b6d4b5333647",
         "5d6d72bf-d7fe-4419-a445-b06a1a62e706"
-      ]
+      ],
+      "organization_id": "org_demo"
     },
     {
       "id": "6ae24484-8f88-4777-ab7c-a7dd739b78b2",
@@ -163,7 +168,8 @@
         "499782f6-44c1-4e49-b65f-75b56b7e4d1c",
         "371f50fd-c8f9-422b-91a8-c0a2f34d8140"
       ],
-      "proposed_change_ids": []
+      "proposed_change_ids": [],
+      "organization_id": "org_demo"
     },
     {
       "id": "4fdc9c50-fa87-4113-ab37-a73143083fd0",
@@ -209,7 +215,8 @@
         "40b2dbb3-9b7e-4828-b20a-9b3f825acf1f",
         "4412fd99-de7c-4dda-ac86-8eac840f355e",
         "a6dcb5b5-2511-4608-adb5-b26c8a4cda08"
-      ]
+      ],
+      "organization_id": "org_demo"
     },
     {
       "id": "0b29369a-694c-45e3-9e2d-8af980e969a0",
@@ -217,7 +224,8 @@
       "created_at": "2026-04-07T09:46:00Z",
       "status": "completed",
       "cluster_ids": [],
-      "proposed_change_ids": []
+      "proposed_change_ids": [],
+      "organization_id": "org_demo"
     }
   ],
   "events": [

@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 _DDL = """
 CREATE TABLE IF NOT EXISTS optimization_runs (
     id          TEXT PRIMARY KEY,
+    organization_id TEXT NOT NULL DEFAULT 'org_demo',
     agent_id    TEXT NOT NULL,
     created_at  TIMESTAMPTZ NOT NULL,
     updated_at  TIMESTAMPTZ NOT NULL,
@@ -21,6 +22,9 @@ CREATE TABLE IF NOT EXISTS optimization_runs (
     cluster_ids JSONB NOT NULL DEFAULT '[]',
     proposed_change_ids JSONB NOT NULL DEFAULT '[]'
 );
+
+ALTER TABLE optimization_runs
+    ADD COLUMN IF NOT EXISTS organization_id TEXT NOT NULL DEFAULT 'org_demo';
 
 CREATE TABLE IF NOT EXISTS run_events (
     id       TEXT PRIMARY KEY,
@@ -109,11 +113,12 @@ class PostgresRunStore:
             await conn.execute(
                 """
                 INSERT INTO optimization_runs
-                    (id, agent_id, created_at, updated_at, status, cluster_ids, proposed_change_ids)
-                VALUES ($1, $2, $3, $3, $4, $5, $6)
+                    (id, organization_id, agent_id, created_at, updated_at, status, cluster_ids, proposed_change_ids)
+                VALUES ($1, $2, $3, $4, $4, $5, $6, $7)
                 ON CONFLICT (id) DO NOTHING
                 """,
                 run.id,
+                run.organization_id,
                 run.agent_id,
                 run.created_at,
                 run.status,
@@ -163,13 +168,12 @@ class PostgresRunStore:
     async def get_run(self, run_id: str) -> OptimizationRun | None:
         pool = await self._get_pool()
         async with pool.acquire() as conn:
-            row = await conn.fetchrow(
-                "SELECT * FROM optimization_runs WHERE id = $1", run_id
-            )
+            row = await conn.fetchrow("SELECT * FROM optimization_runs WHERE id = $1", run_id)
         if row is None:
             return None
         return OptimizationRun(
             id=row["id"],
+            organization_id=row["organization_id"],
             agent_id=row["agent_id"],
             created_at=row["created_at"],
             status=row["status"],
@@ -180,9 +184,7 @@ class PostgresRunStore:
     async def list_events(self, run_id: str) -> list[RunEvent]:
         pool = await self._get_pool()
         async with pool.acquire() as conn:
-            rows = await conn.fetch(
-                "SELECT * FROM run_events WHERE run_id = $1 ORDER BY ts", run_id
-            )
+            rows = await conn.fetch("SELECT * FROM run_events WHERE run_id = $1 ORDER BY ts", run_id)
         return [
             RunEvent(
                 id=row["id"],

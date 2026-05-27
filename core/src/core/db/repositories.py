@@ -13,7 +13,13 @@ class TraceRepo(Protocol):
 
 @runtime_checkable
 class SpanRepo(Protocol):
-    async def save_many(self, spans: list[Span], agent_id: str, session_id: str) -> None: ...
+    async def save_many(
+        self,
+        spans: list[Span],
+        organization_id: str,
+        agent_id: str,
+        session_id: str,
+    ) -> None: ...
 
 
 # ── in-memory fakes used in tests ────────────────────────────────────────────
@@ -31,12 +37,19 @@ class FakeSpanRepo:
     def __init__(self) -> None:
         self.saved: list[dict[str, Any]] = []
 
-    async def save_many(self, spans: list[Span], agent_id: str, session_id: str) -> None:
+    async def save_many(
+        self,
+        spans: list[Span],
+        organization_id: str,
+        agent_id: str,
+        session_id: str,
+    ) -> None:
         for s in spans:
             self.saved.append(
                 {
                     "trace_id": s.trace_id,
                     "span_id": s.id,
+                    "organization_id": organization_id,
                     "agent_id": agent_id,
                     "session_id": session_id,
                     "name": s.name,
@@ -73,11 +86,12 @@ class PostgresTraceRepo:
         async with pool.acquire() as conn:
             await conn.execute(
                 """
-                INSERT INTO traces (id, agent_id, session_id, created_at, outcome, metadata)
-                VALUES ($1, $2, $3, $4, $5, $6)
+                INSERT INTO traces (id, organization_id, agent_id, session_id, created_at, outcome, metadata)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
                 ON CONFLICT (id) DO NOTHING
                 """,
                 trace.id,
+                trace.organization_id,
                 trace.agent_id,
                 trace.session_id,
                 trace.created_at,
@@ -101,7 +115,13 @@ class ClickHouseSpanRepo:
             self._client = clickhouse_connect.get_client(host=self._host, port=self._port)
         return self._client
 
-    async def save_many(self, spans: list[Span], agent_id: str, session_id: str) -> None:
+    async def save_many(
+        self,
+        spans: list[Span],
+        organization_id: str,
+        agent_id: str,
+        session_id: str,
+    ) -> None:
         if not spans:
             return
         client = self._get_client()
@@ -109,6 +129,7 @@ class ClickHouseSpanRepo:
             [
                 s.trace_id,
                 s.id,
+                organization_id,
                 agent_id,
                 session_id,
                 s.name,
@@ -128,6 +149,7 @@ class ClickHouseSpanRepo:
             column_names=[
                 "trace_id",
                 "span_id",
+                "organization_id",
                 "agent_id",
                 "session_id",
                 "name",

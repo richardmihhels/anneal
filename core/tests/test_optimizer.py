@@ -2,15 +2,11 @@
 
 from __future__ import annotations
 
-import pytest
 from core.eval import AgentConfig, EvalHarness, split
-from core.eval.scoring import JudgeCalibrationError
-from core.eval.split import HoldoutSet, _TOKEN, EvalCase
-from core.optimizer import FakeMutator, OptimizationResult, Optimizer
+from core.optimizer import FakeMutator, Optimizer
 from core.optimizer.mutator import MUTATION_BUDGET, PromptMutator
 from core.testing.generator import generate_dataset, generate_trace
 from shared.models import FailureCluster
-
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -389,13 +385,6 @@ def test_miscalibrated_judge_raises_and_skips_cluster() -> None:
             return 1.0
 
     from core.eval import EvalHarness
-
-    harness = EvalHarness(
-        runner=FakeMutator(),  # type: ignore[arg-type]  # not actually used as runner
-        judge=_AlwaysPassJudge(),
-        seed_contexts=["any context"] * 10,
-        seed_labels=["fail"] * 10,  # judge always says pass → 0% agreement → calibration fails
-    )
 
     # Use a runner that satisfies the protocol
     class _FakeRunner:

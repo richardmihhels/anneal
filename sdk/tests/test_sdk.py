@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 
+from anneal_sdk import AnnealClient
 from anneal_sdk.handler import AnnealCallbackHandler
 from anneal_sdk.scrub import scrub
 
@@ -44,6 +45,33 @@ def test_scrub_list() -> None:
     result = scrub(data)
     assert result[0]["secret_key"] == "[REDACTED]"
     assert result[1]["name"] == "ok"
+
+
+# ── client ───────────────────────────────────────────────────────────────────
+
+
+def test_client_from_env_adds_org_header(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setenv("ANNEAL_ENDPOINT", "http://anneal.test")
+    monkeypatch.setenv("ANNEAL_API_KEY", "ann_test")
+    monkeypatch.setenv("ANNEAL_ORG_ID", "org_test")
+
+    client = AnnealClient.from_env()
+    try:
+        assert client._endpoint == "http://anneal.test"  # noqa: SLF001
+        assert client._headers["Authorization"] == "Bearer ann_test"  # noqa: SLF001
+        assert client._headers["X-Anneal-Org"] == "org_test"  # noqa: SLF001
+    finally:
+        client.close()
+
+
+def test_client_prepare_run_scopes_metadata() -> None:
+    client = AnnealClient("http://anneal.test", organization_id="org_test")
+    try:
+        prepared = client._prepare_run({"id": "run-1", "extra": {"metadata": {}}})  # noqa: SLF001
+    finally:
+        client.close()
+
+    assert prepared["extra"]["metadata"]["organization_id"] == "org_test"
 
 
 # ── callback handler ──────────────────────────────────────────────────────────

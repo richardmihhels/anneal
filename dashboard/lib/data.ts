@@ -13,9 +13,36 @@ import type {
   SeedData,
 } from "./types";
 
+const FALLBACK_ORG_ID = "org_demo";
+
 function getData(): SeedData {
   const filePath = join(process.cwd(), "data", "seed.json");
   return JSON.parse(readFileSync(filePath, "utf-8")) as SeedData;
+}
+
+function runOrgId(run: OptimizationRun): string {
+  return run.organization_id ?? FALLBACK_ORG_ID;
+}
+
+function scopedData(data: SeedData, organizationId: string): SeedData {
+  const runs = data.runs.filter((run) => runOrgId(run) === organizationId);
+  const runIds = new Set(runs.map((run) => run.id));
+  const events = data.events.filter((event) => runIds.has(event.run_id));
+  const proposedChanges = data.proposed_changes.filter((change) =>
+    runIds.has(change.optimization_run_id),
+  );
+  const changeIds = new Set(proposedChanges.map((change) => change.id));
+  const clusterIds = new Set(runs.flatMap((run) => run.cluster_ids));
+
+  return {
+    runs,
+    events,
+    proposed_changes: proposedChanges,
+    eval_results: data.eval_results.filter((evalResult) =>
+      changeIds.has(evalResult.proposed_change_id),
+    ),
+    clusters: data.clusters.filter((cluster) => clusterIds.has(cluster.id)),
+  };
 }
 
 function numberFromMetadata(value: unknown): number | null {
@@ -102,8 +129,8 @@ function detailForRun(run: OptimizationRun, data: SeedData): RunDetail {
   };
 }
 
-export function listRuns(): RunSummary[] {
-  const data = getData();
+export function listRuns(organizationId: string): RunSummary[] {
+  const data = scopedData(getData(), organizationId);
   const evalById = new Map<string, EvalResult>(
     data.eval_results.map((evalResult) => [evalResult.id, evalResult]),
   );
@@ -128,21 +155,21 @@ export function listRuns(): RunSummary[] {
     });
 }
 
-export function listRunDetails(): RunDetail[] {
-  const data = getData();
+export function listRunDetails(organizationId: string): RunDetail[] {
+  const data = scopedData(getData(), organizationId);
   return data.runs
     .slice()
     .sort((a, b) => b.created_at.localeCompare(a.created_at))
     .map((run) => detailForRun(run, data));
 }
 
-export function getRun(id: string): RunDetail | null {
-  const data = getData();
+export function getRun(id: string, organizationId: string): RunDetail | null {
+  const data = scopedData(getData(), organizationId);
   const run = data.runs.find((candidate) => candidate.id === id);
   return run ? detailForRun(run, data) : null;
 }
 
-export function getOverviewStats(): {
+export function getOverviewStats(organizationId: string): {
   totalRuns: number;
   prsShipped: number;
   clustersFound: number;
@@ -151,7 +178,7 @@ export function getOverviewStats(): {
   evalScoreTrend: EvalScorePoint[];
   latestEvalScore: number | null;
 } {
-  const data = getData();
+  const data = scopedData(getData(), organizationId);
   const evalById = new Map<string, EvalResult>(
     data.eval_results.map((evalResult) => [evalResult.id, evalResult]),
   );

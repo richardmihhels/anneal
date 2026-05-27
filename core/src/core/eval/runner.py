@@ -36,4 +36,6 @@ class FakeAgentRunner:
 
         h = int(hashlib.sha256(f"{config.prompt}:{trace.id}".encode()).hexdigest()[-8:], 16)
         fraction = h / 0xFFFFFFFF
-        return "Response: issue resolved successfully." if fraction < self._pass_rate else "Response: I cannot help with that, please contact support."
+        if fraction < self._pass_rate:
+            return "Response: issue resolved successfully."
+        return "Response: I cannot help with that, please contact support."

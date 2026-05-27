@@ -25,12 +25,13 @@ def _uid() -> str:
 class CustomerConfig:
     """All static configuration Anneal needs to run one customer's weekly job."""
 
+    organization_id: str
     agent_id: str
-    repo: str          # "owner/name"
-    config_path: str   # path inside repo, e.g. "agent/prompts.py"
+    repo: str  # "owner/name"
+    config_path: str  # path inside repo, e.g. "agent/prompts.py"
     baseline_prompt: str
-    seed_contexts: tuple[str, ...]   # human-labeled calibration examples
-    seed_labels: tuple[str, ...]     # "pass" | "fail" for each context
+    seed_contexts: tuple[str, ...]  # human-labeled calibration examples
+    seed_labels: tuple[str, ...]  # "pass" | "fail" for each context
     baseline_skills: tuple[str, ...] = ()
     base_branch: str = "main"
 

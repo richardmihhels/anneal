@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { listRuns } from "@/lib/data";
+import { getOptionalSession } from "@/lib/auth";
 
-export function GET() {
-  return NextResponse.json(listRuns());
+export async function GET() {
+  const session = await getOptionalSession();
+  if (!session) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  return NextResponse.json(listRuns(session.organizationId));
 }

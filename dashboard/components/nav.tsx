@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { AuthSession } from "@/lib/auth";
 
 const links = [
   { href: "/", label: "Overview" },
@@ -9,7 +10,7 @@ const links = [
   { href: "/connect", label: "Connect" },
 ];
 
-export function Nav() {
+export function Nav({ session }: { session: AuthSession | null }) {
   const pathname = usePathname();
 
   return (
@@ -43,7 +44,25 @@ export function Nav() {
       </ul>
 
       <div className="ml-auto hidden px-2 md:ml-0 md:mt-auto md:block">
-        <p className="text-xs text-zinc-600">cascade-support-v1</p>
+        {session ? (
+          <div className="space-y-1">
+            <p className="truncate text-xs text-zinc-500">{session.organizationName}</p>
+            <p className="truncate text-xs text-zinc-700">{session.email}</p>
+            <Link
+              href="/logout"
+              className="block text-xs text-zinc-600 transition-colors hover:text-zinc-300"
+            >
+              Sign out
+            </Link>
+          </div>
+        ) : (
+          <Link
+            href="/login"
+            className="text-xs text-zinc-500 transition-colors hover:text-zinc-300"
+          >
+            Sign in
+          </Link>
+        )}
       </div>
     </nav>
   );

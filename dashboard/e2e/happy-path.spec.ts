@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
 
 test("dashboard happy path", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/login");
+  await page.getByRole("button", { name: "Continue to Prompt 7 Demo" }).click();
 
   await expect(
     page.getByRole("heading", { name: "Overview" }),

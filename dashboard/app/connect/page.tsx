@@ -1,4 +1,8 @@
-export default function ConnectPage() {
+import { requireSession } from "@/lib/auth";
+
+export default async function ConnectPage() {
+  const session = await requireSession();
+
   return (
     <div className="max-w-2xl">
       <div className="mb-8">
@@ -18,21 +22,32 @@ export default function ConnectPage() {
             Add the SDK to your agent&apos;s dependencies:
           </p>
           <pre className="rounded-lg bg-zinc-950 border border-zinc-800 px-4 py-3 font-mono text-sm text-zinc-300">
-            pip install anneal-sdk
+            pip install anneal-sdk[langchain]
           </pre>
           <p className="mt-3 text-sm text-zinc-400">
-            Then wrap your agent call:
+            Then attach the callback handler to your LangGraph run:
           </p>
           <pre className="mt-2 rounded-lg bg-zinc-950 border border-zinc-800 px-4 py-3 font-mono text-xs text-zinc-400 leading-relaxed">
-{`from anneal import AnnealTracer
+{`from anneal_sdk import AnnealClient
 
-tracer = AnnealTracer(agent_id="cascade-support-v1")
+anneal = AnnealClient.from_env()
+handler = anneal.callback_handler(agent_id="cascade-support-v1")
 
-# Wrap your LangGraph agent
-with tracer.trace(session_id=session_id) as span:
-    result = agent.invoke(input)
-    span.record_outcome("success" if result.resolved else "failure")`}
+result = graph.invoke(
+    {"messages": messages},
+    config={"callbacks": [handler]},
+)
+anneal.flush()`}
           </pre>
+          <div className="mt-3 rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2">
+            <p className="text-xs text-zinc-500">
+              Use{" "}
+              <code className="rounded bg-zinc-950 px-1 py-0.5 text-zinc-400">
+                ANNEAL_ORG_ID={session.organizationId}
+              </code>{" "}
+              so traces land in {session.organizationName}.
+            </p>
+          </div>
         </Step>
 
         <Step
@@ -73,7 +88,8 @@ with tracer.trace(session_id=session_id) as span:
             Add an <code className="rounded bg-zinc-800 px-1 py-0.5 text-xs text-zinc-300">anneal.yml</code> to your repo root:
           </p>
           <pre className="rounded-lg bg-zinc-950 border border-zinc-800 px-4 py-3 font-mono text-xs text-zinc-400 leading-relaxed">
-{`agent_id: cascade-support-v1
+{`organization_id: ${session.organizationId}
+agent_id: cascade-support-v1
 repo: acme/agent
 config_path: agent/prompts.py
 base_branch: main

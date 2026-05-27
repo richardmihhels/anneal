@@ -5,6 +5,7 @@ Run from the repo root:
 
 Writes dashboard/data/seed.json with 8 weeks of synthetic optimization runs.
 """
+
 from __future__ import annotations
 
 import dataclasses
@@ -19,7 +20,6 @@ _ROOT = Path(__file__).parents[2]
 for _pkg in ("shared/src", "core/src", "worker/src"):
     sys.path.insert(0, str(_ROOT / _pkg))
 
-from shared.models import FailureCluster, OptimizationRun, ProposedChange  # noqa: E402
 from core.clustering.embedder import TFIDFEmbedder  # noqa: E402
 from core.clustering.judge import FakeJudge  # noqa: E402
 from core.clustering.labeler import FakeLabeler  # noqa: E402
@@ -30,7 +30,10 @@ from core.eval.split import split  # noqa: E402
 from core.optimizer.engine import Optimizer  # noqa: E402
 from core.optimizer.mutator import FakeMutator  # noqa: E402
 from core.testing.generator import generate_dataset  # noqa: E402
-from shared.models import Trace  # noqa: E402
+from shared.models import (  # noqa: E402
+    OptimizationRun,
+    Trace,  # noqa: E402
+)
 from worker.models import RunEvent  # noqa: E402
 
 
@@ -105,7 +108,7 @@ def run_good_cycle(seed: int, days_ago: float) -> dict[str, Any]:
     pipeline = ClusterPipeline(embedder=TFIDFEmbedder(), judge=FakeJudge(), labeler=FakeLabeler())
     clusters = pipeline.run(traces)
 
-    harness, optimizer = _good_components(_MutationAwareRunner())
+    _harness, optimizer = _good_components(_MutationAwareRunner())
     baseline = AgentConfig(prompt=_BASELINE, skills=())
     opt_result = optimizer.optimize(clusters, traces, baseline, holdout, run_id=run_id)
 
@@ -123,12 +126,47 @@ def run_good_cycle(seed: int, days_ago: float) -> dict[str, Any]:
 
     events = [
         _ev(run_id, "init", "started", f"Optimization cycle started for agent {_AGENT_ID}", t0),
-        _ev(run_id, "clustering", "started", f"Clustering {len(traces)} traces", t0 + timedelta(seconds=1), {"trace_count": len(traces)}),
-        _ev(run_id, "clustering", "completed", f"Found {len(clusters)} failure cluster(s)", t0 + timedelta(seconds=8), {"cluster_count": len(clusters), "cluster_labels": [c.label for c in clusters]}),
-        _ev(run_id, "optimization", "started", f"Optimizing {len(clusters)} cluster(s) (budget=1)", t0 + timedelta(seconds=9), {"cluster_count": len(clusters)}),
-        _ev(run_id, "optimization", "completed", f"{survivors} candidate(s) passed the eval gate ({rejected} rejected)", t0 + timedelta(seconds=48), {"survivors": survivors, "rejected": rejected, "holdout_size": len(holdout.cases)}),
+        _ev(
+            run_id,
+            "clustering",
+            "started",
+            f"Clustering {len(traces)} traces",
+            t0 + timedelta(seconds=1),
+            {"trace_count": len(traces)},
+        ),
+        _ev(
+            run_id,
+            "clustering",
+            "completed",
+            f"Found {len(clusters)} failure cluster(s)",
+            t0 + timedelta(seconds=8),
+            {"cluster_count": len(clusters), "cluster_labels": [c.label for c in clusters]},
+        ),
+        _ev(
+            run_id,
+            "optimization",
+            "started",
+            f"Optimizing {len(clusters)} cluster(s) (budget=1)",
+            t0 + timedelta(seconds=9),
+            {"cluster_count": len(clusters)},
+        ),
+        _ev(
+            run_id,
+            "optimization",
+            "completed",
+            f"{survivors} candidate(s) passed the eval gate ({rejected} rejected)",
+            t0 + timedelta(seconds=48),
+            {"survivors": survivors, "rejected": rejected, "holdout_size": len(holdout.cases)},
+        ),
         _ev(run_id, "publishing", "started", f"Publishing {survivors} change(s)", t0 + timedelta(seconds=49)),
-        _ev(run_id, "publishing", "completed", f"Opened {survivors} PR(s)", t0 + timedelta(seconds=52), {"prs_opened": survivors, "silence": None}),
+        _ev(
+            run_id,
+            "publishing",
+            "completed",
+            f"Opened {survivors} PR(s)",
+            t0 + timedelta(seconds=52),
+            {"prs_opened": survivors, "silence": None},
+        ),
         _ev(run_id, "done", "completed", "Optimization cycle complete.", t0 + timedelta(seconds=53)),
     ]
 
@@ -151,9 +189,9 @@ def run_silent_cycle(seed: int, days_ago: float) -> dict[str, Any]:
     pipeline = ClusterPipeline(embedder=TFIDFEmbedder(), judge=FakeJudge(), labeler=FakeLabeler())
     clusters = pipeline.run(traces)
 
-    harness, optimizer = _good_components(_AlwaysPassRunner())
+    _harness, optimizer = _good_components(_AlwaysPassRunner())
     baseline = AgentConfig(prompt=_BASELINE, skills=())
-    opt_result = optimizer.optimize(clusters, traces, baseline, holdout, run_id=run_id)
+    optimizer.optimize(clusters, traces, baseline, holdout, run_id=run_id)
 
     n = len(clusters)
     silence_msg = (
@@ -173,12 +211,47 @@ def run_silent_cycle(seed: int, days_ago: float) -> dict[str, Any]:
 
     events = [
         _ev(run_id, "init", "started", f"Optimization cycle started for agent {_AGENT_ID}", t0),
-        _ev(run_id, "clustering", "started", f"Clustering {len(traces)} traces", t0 + timedelta(seconds=1), {"trace_count": len(traces)}),
-        _ev(run_id, "clustering", "completed", f"Found {len(clusters)} failure cluster(s)", t0 + timedelta(seconds=8), {"cluster_count": len(clusters)}),
-        _ev(run_id, "optimization", "started", f"Optimizing {len(clusters)} cluster(s) (budget=1)", t0 + timedelta(seconds=9), {"cluster_count": len(clusters)}),
-        _ev(run_id, "optimization", "completed", f"0 candidate(s) passed the eval gate ({len(clusters)} rejected)", t0 + timedelta(seconds=44), {"survivors": 0, "rejected": len(clusters), "holdout_size": len(holdout.cases)}),
+        _ev(
+            run_id,
+            "clustering",
+            "started",
+            f"Clustering {len(traces)} traces",
+            t0 + timedelta(seconds=1),
+            {"trace_count": len(traces)},
+        ),
+        _ev(
+            run_id,
+            "clustering",
+            "completed",
+            f"Found {len(clusters)} failure cluster(s)",
+            t0 + timedelta(seconds=8),
+            {"cluster_count": len(clusters)},
+        ),
+        _ev(
+            run_id,
+            "optimization",
+            "started",
+            f"Optimizing {len(clusters)} cluster(s) (budget=1)",
+            t0 + timedelta(seconds=9),
+            {"cluster_count": len(clusters)},
+        ),
+        _ev(
+            run_id,
+            "optimization",
+            "completed",
+            f"0 candidate(s) passed the eval gate ({len(clusters)} rejected)",
+            t0 + timedelta(seconds=44),
+            {"survivors": 0, "rejected": len(clusters), "holdout_size": len(holdout.cases)},
+        ),
         _ev(run_id, "publishing", "started", "Publishing 0 change(s)", t0 + timedelta(seconds=45)),
-        _ev(run_id, "publishing", "completed", silence_msg, t0 + timedelta(seconds=46), {"prs_opened": 0, "silence": silence_msg}),
+        _ev(
+            run_id,
+            "publishing",
+            "completed",
+            silence_msg,
+            t0 + timedelta(seconds=46),
+            {"prs_opened": 0, "silence": silence_msg},
+        ),
         _ev(run_id, "done", "completed", "Optimization cycle complete.", t0 + timedelta(seconds=47)),
     ]
 
@@ -207,8 +280,22 @@ def run_failed_cycle(days_ago: float) -> dict[str, Any]:
     exc_msg = "embedder unavailable: connection refused to embedding service"
     events = [
         _ev(run_id, "init", "started", f"Optimization cycle started for agent {_AGENT_ID}", t0),
-        _ev(run_id, "clustering", "started", "Clustering 150 traces", t0 + timedelta(seconds=1), {"trace_count": 150}),
-        _ev(run_id, "clustering", "failed", f"Stage 'clustering' failed: {exc_msg}", t0 + timedelta(seconds=4), {"error": exc_msg, "error_type": "RuntimeError"}),
+        _ev(
+            run_id,
+            "clustering",
+            "started",
+            "Clustering 150 traces",
+            t0 + timedelta(seconds=1),
+            {"trace_count": 150},
+        ),
+        _ev(
+            run_id,
+            "clustering",
+            "failed",
+            f"Stage 'clustering' failed: {exc_msg}",
+            t0 + timedelta(seconds=4),
+            {"error": exc_msg, "error_type": "RuntimeError"},
+        ),
     ]
 
     return {"run": run, "events": events, "clusters": [], "proposed_changes": [], "eval_results": []}
@@ -230,7 +317,14 @@ def run_skipped_cycle(days_ago: float) -> dict[str, Any]:
 
     events = [
         _ev(run_id, "init", "started", f"Optimization cycle started for agent {_AGENT_ID}", t0),
-        _ev(run_id, "init", "info", f"Not enough traces to optimize ({trace_count} < 20). Skipping this cycle.", t0 + timedelta(milliseconds=200), {"trace_count": trace_count, "min_required": 20}),
+        _ev(
+            run_id,
+            "init",
+            "info",
+            f"Not enough traces to optimize ({trace_count} < 20). Skipping this cycle.",
+            t0 + timedelta(milliseconds=200),
+            {"trace_count": trace_count, "min_required": 20},
+        ),
         _ev(run_id, "done", "completed", "Cycle skipped — insufficient traces.", t0 + timedelta(milliseconds=400)),
     ]
 
@@ -253,13 +347,13 @@ def _serialize(obj: Any) -> Any:
 
 def main() -> None:
     scenarios = [
-        ("good",    42,   1.0),
-        ("silent",  17,   8.0),
-        ("good",     7,  15.0),
-        ("failed",  None, 22.0),
-        ("good",    13,  29.0),
-        ("silent",  99,  36.0),
-        ("good",    55,  43.0),
+        ("good", 42, 1.0),
+        ("silent", 17, 8.0),
+        ("good", 7, 15.0),
+        ("failed", None, 22.0),
+        ("good", 13, 29.0),
+        ("silent", 99, 36.0),
+        ("good", 55, 43.0),
         ("skipped", None, 50.0),
     ]
 
@@ -282,13 +376,15 @@ def main() -> None:
         all_changes.extend(r["proposed_changes"])
         all_evals.extend(r["eval_results"])
 
-    data = _serialize({
-        "runs": all_runs,
-        "events": all_events,
-        "clusters": all_clusters,
-        "proposed_changes": all_changes,
-        "eval_results": all_evals,
-    })
+    data = _serialize(
+        {
+            "runs": all_runs,
+            "events": all_events,
+            "clusters": all_clusters,
+            "proposed_changes": all_changes,
+            "eval_results": all_evals,
+        }
+    )
 
     out = Path(__file__).parents[1] / "data" / "seed.json"
     out.parent.mkdir(exist_ok=True)

@@ -1,8 +1,10 @@
 import { RunsTimeline } from "@/components/runs-timeline";
 import { listRunDetails } from "@/lib/data";
+import { requireSession } from "@/lib/auth";
 
-export default function RunsPage() {
-  const runs = listRunDetails();
+export default async function RunsPage() {
+  const session = await requireSession();
+  const runs = listRunDetails(session.organizationId);
   const shipped = runs.reduce((sum, run) => sum + run.gate.prs_opened, 0);
   const held = runs.reduce((sum, run) => sum + run.gate.rejected, 0);
 
@@ -13,7 +15,7 @@ export default function RunsPage() {
           <h1 className="text-xl font-semibold text-zinc-100">Runs</h1>
           <p className="mt-1 text-sm text-zinc-500">
             {runs.length} weekly optimization cycles from Prompt 7 synthetic
-            run records.
+            run records for {session.organizationName}.
           </p>
         </div>
         <div className="flex gap-4 text-right text-xs">

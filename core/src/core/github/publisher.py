@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from shared.models import EvalResult, ProposedChange
 
@@ -106,9 +106,7 @@ class PRPublisher:
 
     def _open_pr(self, change: ProposedChange, ev: EvalResult) -> OpenedPR | None:
         try:
-            content, sha = self._gateway.get_file(
-                self._repo, self._config_path, self._base_branch
-            )
+            content, sha = self._gateway.get_file(self._repo, self._config_path, self._base_branch)
         except FileNotFoundError:
             logger.warning(
                 "Config file %s not found in %s — skipping change %s",
@@ -143,9 +141,7 @@ class PRPublisher:
                 branch,
                 f"fix(prompt): {title}",
             )
-            url = self._gateway.create_pr(
-                self._repo, title, body, branch, self._base_branch, label
-            )
+            url = self._gateway.create_pr(self._repo, title, body, branch, self._base_branch, label)
         except Exception:
             logger.exception("Failed to open PR for change %s", change.id)
             return None

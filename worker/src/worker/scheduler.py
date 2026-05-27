@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from collections.abc import Callable, Coroutine
 from typing import Any
 
+from core.github.client import GitHubGateway
 from shared.models import Trace
 
-from core.github.client import GitHubGateway
 from worker.models import CustomerConfig, PipelineComponents
 from worker.pipeline import run_optimization_cycle
 from worker.store import RunStore

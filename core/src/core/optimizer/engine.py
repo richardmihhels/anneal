@@ -89,9 +89,7 @@ class Optimizer:
 
         for cluster in clusters:
             failure_contexts = [
-                extract_context(trace_by_id[tid])
-                for tid in cluster.trace_ids[:3]
-                if tid in trace_by_id
+                extract_context(trace_by_id[tid]) for tid in cluster.trace_ids[:3] if tid in trace_by_id
             ]
 
             candidates = self._mutator.mutate(baseline.prompt, failure_contexts, self._budget)
@@ -152,9 +150,7 @@ class Optimizer:
             if best_change is not None and best_eval is not None:
                 proposed_changes.append(best_change)
                 eval_results.append(best_eval)
-                logger.info(
-                    "Cluster '%s': accepted candidate (delta=%.3f)", cluster.label, best_delta
-                )
+                logger.info("Cluster '%s': accepted candidate (delta=%.3f)", cluster.label, best_delta)
             else:
                 logger.info("Cluster '%s': no candidate beat baseline", cluster.label)
 

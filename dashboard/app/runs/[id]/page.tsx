@@ -5,6 +5,7 @@ import { RunStatusBadge } from "@/components/run-status-badge";
 import { EvalDelta } from "@/components/eval-delta";
 import { EmptyState } from "@/components/empty-state";
 import { RunEventsTimeline } from "@/components/run-events-timeline";
+import { requireSession } from "@/lib/auth";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString("en-US", {
@@ -36,8 +37,9 @@ interface PageProps {
 }
 
 export default async function RunDetailPage({ params }: PageProps) {
+  const session = await requireSession();
   const { id } = await params;
-  const run = getRun(id);
+  const run = getRun(id, session.organizationId);
   if (!run) notFound();
 
   const isFailed = run.status === "failed";

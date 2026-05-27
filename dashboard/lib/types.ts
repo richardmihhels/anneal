@@ -4,6 +4,7 @@ export type RunEventKind = "started" | "completed" | "failed" | "info";
 
 export interface OptimizationRun {
   id: string;
+  organization_id?: string;
   agent_id: string;
   created_at: string;
   status: RunStatus;

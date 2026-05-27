@@ -27,12 +27,10 @@
       "type": "number"
     },
     "input": {
-      "additionalProperties": true,
       "title": "Input",
       "type": "object"
     },
     "output": {
-      "additionalProperties": true,
       "title": "Output",
       "type": "object"
     },
@@ -49,7 +47,6 @@
       "title": "Error"
     },
     "metadata": {
-      "additionalProperties": true,
       "title": "Metadata",
       "type": "object"
     }

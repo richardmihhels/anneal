@@ -13,7 +13,7 @@ def _extract_cluster_description(rationale: str) -> str:
     """Parse 'Target failure: Foo bar (N cases...)' → 'Foo bar'."""
     for line in rationale.splitlines():
         if line.startswith("Target failure:"):
-            rest = line[len("Target failure:"):].strip()
+            rest = line[len("Target failure:") :].strip()
             return rest.split(" (")[0].strip()
     return "unknown failure pattern"
 

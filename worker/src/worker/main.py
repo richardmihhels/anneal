@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 async def _main() -> None:
     from core.github.client import FakeGitHubGateway
+
     from worker.models import CustomerConfig, fake_components
     from worker.scheduler import setup_scheduler, trigger_now
     from worker.store import FakeRunStore

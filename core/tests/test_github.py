@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 from core.github import (
     FakeGitHubGateway,
     PRPublisher,
@@ -15,7 +14,6 @@ from core.github import (
 from core.github.pr import _extract_cluster_description, _extract_failure_excerpt
 from core.optimizer.engine import OptimizationResult
 from shared.models import EvalResult, ProposedChange
-
 
 # ── fixtures ──────────────────────────────────────────────────────────────────
 
@@ -171,7 +169,7 @@ def test_pr_body_one_line_summary() -> None:
     ev = _make_eval(change_id=change.id)
     body = build_pr_body(change, ev)
     # First non-empty line is the summary
-    first_line = next(l for l in body.splitlines() if l.strip())
+    first_line = next(line for line in body.splitlines() if line.strip())
     assert "Wrong tool routed to order lookup" in first_line
 
 
@@ -213,7 +211,7 @@ def test_pr_body_not_wall_of_text() -> None:
     ev = _make_eval(change_id=change.id)
     body = build_pr_body(change, ev)
     # Prompt content can be long, but the structural text should be concise
-    lines = [l for l in body.splitlines() if l.strip()]
+    lines = [line for line in body.splitlines() if line.strip()]
     assert len(lines) <= 30, f"PR body has {len(lines)} non-empty lines — too verbose"
 
 

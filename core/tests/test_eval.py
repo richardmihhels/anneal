@@ -4,20 +4,18 @@ from __future__ import annotations
 
 import pytest
 from core.eval import (
+    MIN_JUDGE_AGREEMENT,
     AgentConfig,
     EvalHarness,
     FakeAgentRunner,
     FakeEvalJudge,
     JudgeCalibrationError,
-    MIN_JUDGE_AGREEMENT,
-    SignificanceResult,
     calibrate,
     paired_t_test,
     split,
 )
-from core.eval.split import HoldoutSet, _TOKEN
+from core.eval.split import _TOKEN, HoldoutSet
 from core.testing.generator import generate_dataset, generate_trace
-
 
 # ── split / leakage prevention ────────────────────────────────────────────────
 
@@ -205,10 +203,6 @@ def test_harness_candidate_better_than_baseline() -> None:
 
     assert holdout.cases, "Need at least one holdout case"
 
-    seed_contexts = [c.trace.id for c in holdout.cases]
-    # FakeEvalJudge(1.0) always says "pass"; use all-pass labels so calibration succeeds
-    seed_labels = ["pass"] * len(holdout.cases)
-
     class _PairedRunner:
         def __init__(self, baseline_rate: float, candidate_rate: float) -> None:
             self._b = FakeAgentRunner(pass_rate=baseline_rate)
@@ -254,10 +248,7 @@ def test_harness_miscalibrated_judge_raises() -> None:
     # Force all labels to "fail" so agreement is 0%.
     from core.eval.split import EvalCase
 
-    bad_cases = tuple(
-        EvalCase(trace=c.trace, human_label="fail")
-        for c in holdout.cases
-    )
+    bad_cases = tuple(EvalCase(trace=c.trace, human_label="fail") for c in holdout.cases)
     bad_holdout = HoldoutSet(cases=bad_cases, _token=_TOKEN)
 
     seed_contexts = [c.trace.id for c in bad_holdout.cases]

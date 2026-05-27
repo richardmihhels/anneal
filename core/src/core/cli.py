@@ -185,9 +185,7 @@ def optimize(
     table.add_column("p-value", justify="right", width=8)
     table.add_column("n", justify="right", width=5)
 
-    for rank, (change, ev) in enumerate(
-        zip(result.proposed_changes, result.eval_results), 1
-    ):
+    for rank, (change, ev) in enumerate(zip(result.proposed_changes, result.eval_results), 1):
         target_line = change.rationale.split("\n")[0].replace("Target failure: ", "")
         table.add_row(str(rank), target_line, f"+{ev.delta:.3f}", f"{ev.p_value:.4f}", str(ev.sample_size))
 
