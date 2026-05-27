@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import type { AuthSession } from "@/lib/auth";
 
 const links = [
-  { href: "/", label: "Overview" },
+  { href: "/app", label: "Overview" },
   { href: "/runs", label: "Runs" },
   { href: "/connect", label: "Connect" },
 ];
@@ -24,7 +24,7 @@ export function Nav({ session }: { session: AuthSession | null }) {
       <ul className="flex gap-0.5 md:flex-col">
         {links.map(({ href, label }) => {
           const active =
-            href === "/" ? pathname === "/" : pathname.startsWith(href);
+            href === "/app" ? pathname === "/app" : pathname.startsWith(href);
           return (
             <li key={href}>
               <Link

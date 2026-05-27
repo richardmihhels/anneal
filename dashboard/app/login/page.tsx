@@ -9,12 +9,12 @@ async function continueToDemoOrg() {
   "use server";
 
   await setSessionCookie(createDemoSession());
-  redirect("/");
+  redirect("/app");
 }
 
 export default async function LoginPage() {
   const session = await getOptionalSession();
-  if (session) redirect("/");
+  if (session) redirect("/app");
 
   return (
     <div className="flex min-h-[70vh] max-w-xl flex-col justify-center">

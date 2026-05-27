@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test("dashboard happy path", async ({ page }) => {
   await page.goto("/login");
+  // After login the app redirects to /app (marketing page lives at /)
   await page.getByRole("button", { name: "Continue to Prompt 7 Demo" }).click();
 
   await expect(
