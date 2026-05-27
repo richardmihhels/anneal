@@ -1,0 +1,57 @@
+{
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "proposed_change_id": {
+      "title": "Proposed Change Id",
+      "type": "string"
+    },
+    "run_at": {
+      "format": "date-time",
+      "title": "Run At",
+      "type": "string"
+    },
+    "baseline_score": {
+      "title": "Baseline Score",
+      "type": "number"
+    },
+    "candidate_score": {
+      "title": "Candidate Score",
+      "type": "number"
+    },
+    "delta": {
+      "title": "Delta",
+      "type": "number"
+    },
+    "p_value": {
+      "title": "P Value",
+      "type": "number"
+    },
+    "sample_size": {
+      "title": "Sample Size",
+      "type": "integer"
+    },
+    "passed": {
+      "title": "Passed",
+      "type": "boolean"
+    },
+    "judge_agreement_rate": {
+      "title": "Judge Agreement Rate",
+      "type": "number"
+    }
+  },
+  "required": [
+    "proposed_change_id",
+    "baseline_score",
+    "candidate_score",
+    "delta",
+    "p_value",
+    "sample_size",
+    "passed",
+    "judge_agreement_rate"
+  ],
+  "title": "EvalResult",
+  "type": "object"
+}

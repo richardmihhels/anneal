@@ -1,0 +1,49 @@
+{
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "optimization_run_id": {
+      "title": "Optimization Run Id",
+      "type": "string"
+    },
+    "target": {
+      "title": "Target",
+      "type": "string"
+    },
+    "before": {
+      "title": "Before",
+      "type": "string"
+    },
+    "after": {
+      "title": "After",
+      "type": "string"
+    },
+    "rationale": {
+      "title": "Rationale",
+      "type": "string"
+    },
+    "eval_result_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Eval Result Id"
+    }
+  },
+  "required": [
+    "optimization_run_id",
+    "target",
+    "before",
+    "after",
+    "rationale"
+  ],
+  "title": "ProposedChange",
+  "type": "object"
+}

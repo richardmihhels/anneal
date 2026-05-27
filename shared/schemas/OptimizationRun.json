@@ -1,0 +1,47 @@
+{
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "agent_id": {
+      "title": "Agent Id",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "status": {
+      "default": "pending",
+      "enum": [
+        "pending",
+        "running",
+        "completed",
+        "failed"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "cluster_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Cluster Ids",
+      "type": "array"
+    },
+    "proposed_change_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Proposed Change Ids",
+      "type": "array"
+    }
+  },
+  "required": [
+    "agent_id"
+  ],
+  "title": "OptimizationRun",
+  "type": "object"
+}
