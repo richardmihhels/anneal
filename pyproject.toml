@@ -1,5 +1,5 @@
 [tool.uv.workspace]
-members = ["core", "worker", "shared"]
+members = ["core", "worker", "shared", "sdk"]
 
 [dependency-groups]
 dev = [
@@ -17,14 +17,14 @@ default-groups = ["dev"]
 strict = true
 python_version = "3.12"
 plugins = ["pydantic.mypy"]
-mypy_path = ["core/src", "worker/src", "shared/src"]
+mypy_path = ["core/src", "worker/src", "shared/src", "sdk/src"]
 
 [tool.ruff]
 target-version = "py312"
-line-length = 88
+line-length = 120
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
 
 [tool.pytest.ini_options]
-testpaths = ["core/tests", "worker/tests"]
+testpaths = ["core/tests", "worker/tests", "sdk/tests"]
