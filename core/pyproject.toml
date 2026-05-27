@@ -15,6 +15,7 @@ dependencies = [
     "typer>=0.12",
     "rich>=13",
     "scipy>=1.10",
+    "dspy>=3.2.1",
 ]
 
 [project.scripts]

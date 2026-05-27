@@ -92,6 +92,114 @@ def eval(
 
 
 @app.command()
+def optimize(
+    n_traces: int = typer.Option(200, "--n-traces", help="Synthetic traces to generate"),
+    seed: int = typer.Option(42, "--seed", help="Random seed"),
+    budget: int = typer.Option(2, "--budget", help="Candidate prompts to evaluate per cluster"),
+) -> None:
+    """Run the full clusters→GEPA→eval optimization pipeline on synthetic data.
+
+    Clusters failures in the train split, proposes prompt mutations per cluster,
+    gates each candidate via the eval harness, and prints surviving ProposedChanges.
+    Uses fake components (no API keys required).
+    """
+    from core.clustering import ClusterPipeline, FakeJudge, FakeLabeler, TFIDFEmbedder
+    from core.eval import AgentConfig, EvalHarness, JudgeCalibrationError, split
+    from core.optimizer import FakeMutator, Optimizer
+    from core.testing.generator import generate_dataset
+
+    console.print(f"Generating {n_traces} synthetic traces (seed={seed})…")
+    traces = generate_dataset(n=n_traces, seed=seed)
+
+    train, holdout = split(traces, seed=seed)
+    console.print(f"  {len(train.cases)} train  ·  {len(holdout.cases)} holdout")
+
+    if not holdout.cases:
+        console.print("[red]No holdout cases — increase --n-traces.[/red]")
+        raise typer.Exit(code=1)
+
+    # Cluster failures from the TRAIN split only — holdout is never seen by clustering
+    train_traces = [c.trace for c in train.cases]
+    console.print(f"Clustering {len(train_traces)} train traces…")
+    pipeline = ClusterPipeline(embedder=TFIDFEmbedder(), judge=FakeJudge(), labeler=FakeLabeler())
+    clusters = pipeline.run(train_traces)
+
+    if not clusters:
+        console.print("[yellow]No failure clusters found in train split.[/yellow]")
+        raise typer.Exit(code=1)
+
+    console.print(f"  Found {len(clusters)} clusters")
+
+    baseline_config = AgentConfig(prompt="anneal-baseline-v1", skills=("lookup_order",))
+
+    class _DemoRunner:
+        """Returns 'resolved' for mutation prompts, 'cannot help' for baseline."""
+
+        def run(self, trace: object, config: AgentConfig) -> str:
+            return "issue resolved successfully." if "mutation" in config.prompt else "I cannot help with that."
+
+    class _KeywordJudge:
+        def score(self, context: str) -> float:
+            return 1.0 if "resolved" in context.lower() else 0.0
+
+    seed_contexts = ["issue resolved successfully"] * 10 + ["I cannot help with that"] * 10
+    seed_labels = ["pass"] * 10 + ["fail"] * 10
+
+    harness = EvalHarness(
+        runner=_DemoRunner(),
+        judge=_KeywordJudge(),
+        seed_contexts=seed_contexts,
+        seed_labels=seed_labels,
+    )
+
+    optimizer = Optimizer(mutator=FakeMutator(), harness=harness, budget=budget)
+
+    console.print(f"Optimizing {len(clusters)} clusters (budget={budget} candidates each)…")
+    try:
+        result = optimizer.optimize(
+            clusters=clusters,
+            traces=train_traces,
+            baseline=baseline_config,
+            holdout=holdout,
+            run_id="cli-demo",
+        )
+    except JudgeCalibrationError as exc:
+        console.print(f"[red bold]Judge calibration failed:[/red bold] {exc}")
+        raise typer.Exit(code=1) from exc
+
+    console.print()
+    if not result.proposed_changes:
+        console.print("[yellow]No candidates beat the baseline.[/yellow]")
+        raise typer.Exit(code=0)
+
+    table = Table(
+        title=f"Proposed Changes  —  {len(result.proposed_changes)} survivors from {len(clusters)} clusters",
+        show_header=True,
+        header_style="bold",
+        box=None,
+        pad_edge=False,
+    )
+    table.add_column("#", style="dim", width=3)
+    table.add_column("Target cluster", min_width=40)
+    table.add_column("Δ score", justify="right", width=8)
+    table.add_column("p-value", justify="right", width=8)
+    table.add_column("n", justify="right", width=5)
+
+    for rank, (change, ev) in enumerate(
+        zip(result.proposed_changes, result.eval_results), 1
+    ):
+        target_line = change.rationale.split("\n")[0].replace("Target failure: ", "")
+        table.add_row(str(rank), target_line, f"+{ev.delta:.3f}", f"{ev.p_value:.4f}", str(ev.sample_size))
+
+    console.print(table)
+    console.print()
+    for i, change in enumerate(result.proposed_changes, 1):
+        console.print(f"[bold]Change #{i}[/bold]")
+        console.print(change.rationale)
+        console.print()
+
+
+@app.command()
 def cluster(
     n_traces: int = typer.Option(100, "--n-traces", help="Synthetic traces to generate"),
     seed: int = typer.Option(42, "--seed", help="Random seed"),

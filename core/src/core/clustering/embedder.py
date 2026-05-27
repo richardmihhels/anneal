@@ -38,7 +38,7 @@ class OpenAIEmbedder:
     """
 
     def __init__(self, model: str = "text-embedding-3-small") -> None:
-        import openai  # type: ignore[import-not-found]
+        import openai
 
         self._client = openai.OpenAI()
         self._model = model
