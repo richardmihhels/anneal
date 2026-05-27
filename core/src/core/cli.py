@@ -14,6 +14,84 @@ def _root() -> None:
 
 
 @app.command()
+def eval(
+    n_traces: int = typer.Option(200, "--n-traces", help="Synthetic traces to generate"),
+    seed: int = typer.Option(42, "--seed", help="Random seed"),
+) -> None:
+    """Run the eval harness against the synthetic dataset.
+
+    Uses FakeAgentRunner (baseline pass_rate=0.2, candidate pass_rate=0.8) and a
+    keyword judge calibrated against synthetic seed examples.
+    Prints a pass/fail report with significance stats and judge agreement rate.
+    """
+    from core.eval import (
+        AgentConfig,
+        EvalHarness,
+        FakeAgentRunner,
+        JudgeCalibrationError,
+        split,
+    )
+    from core.testing.generator import generate_dataset
+
+    console.print(f"Generating {n_traces} synthetic traces (seed={seed})…")
+    traces = generate_dataset(n=n_traces, seed=seed)
+
+    train, holdout = split(traces, seed=seed)
+    console.print(f"  {len(train.cases)} train  ·  {len(holdout.cases)} holdout")
+
+    if not holdout.cases:
+        console.print("[red]No holdout cases — increase --n-traces.[/red]")
+        raise typer.Exit(code=1)
+
+    baseline_config = AgentConfig(prompt="baseline prompt v1", skills=("lookup_order",))
+    candidate_config = AgentConfig(prompt="improved prompt v2", skills=("lookup_order", "issue_refund"))
+
+    baseline_runner = FakeAgentRunner(pass_rate=0.2)
+    candidate_runner = FakeAgentRunner(pass_rate=0.8)
+
+    class _PairedRunner:
+        """Delegates to baseline or candidate based on which config is passed."""
+
+        def run(self, trace: object, config: AgentConfig) -> str:
+            if config is baseline_config:
+                return baseline_runner.run(trace, config)  # type: ignore[arg-type]
+            return candidate_runner.run(trace, config)  # type: ignore[arg-type]
+
+    class _KeywordJudge:
+        """Returns 1.0 if the response contains 'resolved', 0.0 otherwise."""
+
+        def score(self, context: str) -> float:
+            return 1.0 if "resolved" in context.lower() else 0.0
+
+    # Seed examples calibrate the judge: "resolved" responses are passes, others are fails.
+    seed_contexts = ["issue resolved successfully"] * 10 + ["I cannot help with that"] * 10
+    seed_labels = ["pass"] * 10 + ["fail"] * 10
+
+    harness = EvalHarness(
+        runner=_PairedRunner(),
+        judge=_KeywordJudge(),
+        seed_contexts=seed_contexts,
+        seed_labels=seed_labels,
+    )
+
+    try:
+        report = harness.evaluate(baseline_config, candidate_config, holdout)
+    except JudgeCalibrationError as exc:
+        console.print(f"[red bold]Judge calibration failed:[/red bold] {exc}")
+        raise typer.Exit(code=1) from exc
+
+    status = "[green bold]PASS[/green bold]" if report.passed else "[yellow bold]FAIL[/yellow bold]"
+    console.print()
+    console.print(f"Eval result: {status}")
+    console.print(f"  Baseline score   : {report.baseline_score:.3f}")
+    console.print(f"  Candidate score  : {report.candidate_score:.3f}")
+    console.print(f"  Delta            : {report.significance.delta:+.3f}")
+    console.print(f"  p-value (1-tail) : {report.significance.p_value:.4f}")
+    console.print(f"  Sample size      : {report.significance.sample_size}")
+    console.print(f"  Judge agreement  : {report.judge_agreement_rate:.1%}")
+
+
+@app.command()
 def cluster(
     n_traces: int = typer.Option(100, "--n-traces", help="Synthetic traces to generate"),
     seed: int = typer.Option(42, "--seed", help="Random seed"),
