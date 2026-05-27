@@ -12,65 +12,109 @@ export default function HomePage() {
     <>
       <MarketingNav />
 
-      <main id="main-content" className="mx-auto max-w-5xl px-5">
+      <main id="main-content">
         {/* ── Hero ─────────────────────────────────────────────────────────── */}
         <section
-          className="pb-20 pt-36 sm:pt-40"
           aria-labelledby="hero-heading"
+          className="relative overflow-hidden border-b border-[#E3E2DA]"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle, #D5D4CC 1px, transparent 1px)",
+            backgroundSize: "22px 22px",
+          }}
         >
-          <div className="grid gap-16 lg:grid-cols-[1fr_1.1fr] lg:items-start lg:gap-12">
-            {/* Left: copy */}
-            <div>
-              <p className="mb-5 font-mono text-xs font-medium uppercase tracking-widest text-[#B5B4AE]">
-                Private beta
-              </p>
+          {/* Fade vignette so dot grid doesn't fight the text */}
+          <div className="absolute inset-0 bg-gradient-to-b from-[#F8F7F4]/60 via-[#F8F7F4]/80 to-[#F8F7F4]" />
 
-              <h1
-                id="hero-heading"
-                className="mb-6 text-[2.4rem] font-semibold leading-[1.12] tracking-tight text-[#111110] sm:text-5xl"
-              >
-                Your agent,
-                <br />
-                measurably better.
-                <br />
-                <span className="text-[#78776C]">Never worse.</span>
-              </h1>
+          <div className="relative mx-auto max-w-4xl px-5 pb-24 pt-40 text-center sm:pt-48">
+            <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#E3E2DA] bg-white px-3 py-1 font-mono text-[11px] font-medium uppercase tracking-widest text-[#78776C]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#2450B0]" aria-hidden="true" />
+              Private beta
+            </p>
 
-              <p className="mb-8 max-w-md text-base leading-relaxed text-[#78776C]">
-                Anneal ingests your production traces, clusters failures, runs
-                statistically gated prompt optimization, and opens one GitHub PR
-                a week. Dependabot for your agent&rsquo;s prompts and skills.
-              </p>
+            <h1
+              id="hero-heading"
+              className="mb-6 text-[2.75rem] font-semibold leading-[1.08] tracking-[-0.03em] text-[#111110] sm:text-6xl lg:text-[5rem]"
+            >
+              Your agent,
+              <br />
+              measurably better.
+              <br />
+              <span className="text-[#78776C]">Never worse.</span>
+            </h1>
 
-              <div id="waitlist" className="mb-8">
-                <EmailCapture />
-              </div>
+            <p className="mx-auto mb-10 max-w-xl text-lg leading-relaxed text-[#78776C]">
+              Anneal ingests production traces, clusters failures, runs
+              statistically gated prompt optimization, and opens one GitHub PR a
+              week. Dependabot for your agent&rsquo;s prompts and skills.
+            </p>
 
-              <p className="text-xs text-[#B5B4AE]">
-                Built on GEPA — reflective optimization, ICLR 2026.
-              </p>
+            <div id="waitlist" className="flex justify-center">
+              <EmailCapture />
             </div>
 
-            {/* Right: PR mock */}
-            <div className="lg:pt-2">
-              <PRMock />
+            {/* Proof tags */}
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+              {["GEPA · ICLR 2026", "Holdout-gated evals", "LangGraph native"].map(
+                (tag) => (
+                  <span key={tag} className="text-xs text-[#B5B4AE]">
+                    {tag}
+                  </span>
+                ),
+              )}
             </div>
           </div>
         </section>
 
-        {/* ── How it works ─────────────────────────────────────────────────── */}
-        <AnimateIn className="mb-20">
-          <HowItWorks />
+        {/* ── PR Showcase ───────────────────────────────────────────────────── */}
+        <section
+          aria-labelledby="showcase-heading"
+          className="border-b border-[#E3E2DA] bg-white px-5 py-20"
+        >
+          <div className="mx-auto max-w-2xl">
+            <p
+              id="showcase-heading"
+              className="mb-8 text-center font-mono text-xs font-medium uppercase tracking-widest text-[#B5B4AE]"
+            >
+              The artifact Anneal produces
+            </p>
+            <PRMock />
+            <p className="mt-5 text-center text-xs text-[#B5B4AE]">
+              One PR per improvement. Human reviews and merges. Anneal stays
+              silent when nothing clears the gate.
+            </p>
+          </div>
+        </section>
+
+        {/* ── How it works ──────────────────────────────────────────────────── */}
+        <AnimateIn>
+          <section
+            id="how-it-works"
+            aria-labelledby="how-heading"
+            className="border-b border-[#E3E2DA] px-5 py-20"
+          >
+            <div className="mx-auto max-w-5xl">
+              <HowItWorks />
+            </div>
+          </section>
         </AnimateIn>
 
-        {/* ── Silence ──────────────────────────────────────────────────────── */}
-        <AnimateIn delay={60} className="mb-20">
-          <SilenceSection />
+        {/* ── Silence ───────────────────────────────────────────────────────── */}
+        <AnimateIn delay={60}>
+          <section className="border-b border-[#E3E2DA] bg-white px-5 py-20">
+            <div className="mx-auto max-w-5xl">
+              <SilenceSection />
+            </div>
+          </section>
         </AnimateIn>
 
-        {/* ── Trust strip ──────────────────────────────────────────────────── */}
-        <AnimateIn delay={120} className="mb-24">
-          <TrustStrip />
+        {/* ── Trust ─────────────────────────────────────────────────────────── */}
+        <AnimateIn delay={120}>
+          <section className="px-5 py-20">
+            <div className="mx-auto max-w-5xl">
+              <TrustStrip />
+            </div>
+          </section>
         </AnimateIn>
       </main>
 
