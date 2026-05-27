@@ -1,5 +1,6 @@
 import { AnimateIn } from "@/components/marketing/animate-in";
 import { EmailCapture } from "@/components/marketing/email-capture";
+import { HealthViewMock } from "@/components/marketing/health-view-mock";
 import { HowItWorks } from "@/components/marketing/how-it-works";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { MarketingNav } from "@/components/marketing/marketing-nav";
@@ -36,17 +37,17 @@ export default function HomePage() {
               id="hero-heading"
               className="mb-6 text-[2.75rem] font-semibold leading-[1.08] tracking-[-0.03em] text-[#111110] sm:text-6xl lg:text-[5rem]"
             >
-              Your agent,
+              Continuous assurance
               <br />
-              measurably better.
+              for production agents.
               <br />
               <span className="text-[#78776C]">Never worse.</span>
             </h1>
 
             <p className="mx-auto mb-10 max-w-xl text-lg leading-relaxed text-[#78776C]">
-              Anneal ingests production traces, clusters failures, runs
-              statistically gated prompt optimization, and opens one GitHub PR a
-              week. Dependabot for your agent&rsquo;s prompts and skills.
+              Anneal watches your agent every day, alarms you when a failure
+              category regresses, and once a week opens one holdout-gated PR
+              that makes it measurably better.
             </p>
 
             <div id="waitlist" className="flex justify-center">
@@ -63,6 +64,10 @@ export default function HomePage() {
                 ),
               )}
             </div>
+
+            <div className="mx-auto mt-12 max-w-3xl">
+              <HealthViewMock />
+            </div>
           </div>
         </section>
 
@@ -71,17 +76,17 @@ export default function HomePage() {
           aria-labelledby="showcase-heading"
           className="border-b border-[#E3E2DA] bg-white px-5 py-20"
         >
-          <div className="mx-auto max-w-2xl">
+          <div className="mx-auto max-w-xl">
             <p
               id="showcase-heading"
               className="mb-8 text-center font-mono text-xs font-medium uppercase tracking-widest text-[#B5B4AE]"
             >
-              The artifact Anneal produces
+              What the weekly improvement looks like
             </p>
             <PRMock />
             <p className="mt-5 text-center text-xs text-[#B5B4AE]">
-              One PR per improvement. Human reviews and merges. Anneal stays
-              silent when nothing clears the gate.
+              One PR per statistically significant improvement. Human reviews
+              and merges. Anneal stays silent when nothing clears the gate.
             </p>
           </div>
         </section>

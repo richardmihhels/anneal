@@ -17,8 +17,9 @@ export function SilenceSection() {
           Most optimization tools ship something every cycle. Anneal
           doesn&rsquo;t. If no candidate passes the eval gate this week—if every
           mutation either regresses on the holdout or fails to reach
-          statistical significance—Anneal opens no PR and sends no
-          notification.
+          statistical significance—Anneal opens no PR. The weekly digest still
+          tells you what it saw, which clusters mattered, and why holding was
+          the correct outcome.
         </p>
         <p>
           The cost of a false positive in prompt engineering is a production
