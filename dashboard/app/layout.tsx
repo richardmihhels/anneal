@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { Nav } from "@/components/nav";
 
 export const metadata: Metadata = {
   title: "Anneal",
@@ -13,7 +14,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <Nav />
+        <main className="min-h-screen px-4 pb-8 pt-20 md:ml-52 md:px-8 md:py-8">
+          {children}
+        </main>
+      </body>
     </html>
   );
 }
