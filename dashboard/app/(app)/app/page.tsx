@@ -73,7 +73,7 @@ function largestCurrentCategory(
 
 export default async function HealthPage() {
   const session = await requireSession();
-  const health = getHealthData(session.organizationId);
+  const health = await getHealthData(session.organizationId);
   const scorePoints = health.evalTrend.map(healthEvalToScorePoint);
   const scored = scoredPoints(health.evalTrend);
   const latestScore = scored[scored.length - 1] ?? null;

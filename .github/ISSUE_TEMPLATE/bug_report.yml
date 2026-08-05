@@ -1,0 +1,68 @@
+name: Bug report
+description: Report a reproducible problem in Anneal
+title: "bug: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Anneal. For vulnerabilities or cross-organization data access, use the private security-report link instead of this form.
+  - type: input
+    id: version
+    attributes:
+      label: Anneal version
+      description: Provide a release tag or commit SHA.
+      placeholder: v0.1.0 or 1a2b3c4
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Core API
+        - Worker and optimization pipeline
+        - Dashboard
+        - Python SDK
+        - Infrastructure and deployment
+        - Documentation
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Include the smallest safe configuration and exact commands needed to reproduce the problem.
+      placeholder: |
+        1. Configure ...
+        2. Run ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include operating system, Python/Node versions, database versions, and deployment mode where relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized logs
+      description: Remove API keys, customer trace data, credentials, private repository names, and personal information.
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Submission checks
+      options:
+        - label: I searched existing issues for this problem.
+          required: true
+        - label: I removed secrets and customer data from this report.
+          required: true

@@ -11,7 +11,7 @@ export async function GET(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const { id } = await params;
-  const run = getRun(id, session.organizationId);
+  const run = await getRun(id, session.organizationId);
   if (!run) return NextResponse.json({ error: "not found" }, { status: 404 });
   return NextResponse.json(run);
 }

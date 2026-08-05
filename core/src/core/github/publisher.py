@@ -32,11 +32,11 @@ class PublishResult:
 
 
 class PRPublisher:
-    """Opens gated, idempotent GitHub PRs for each surviving ProposedChange.
+    """Opens one gated, idempotent GitHub PR for the strongest change.
 
     Hard gates:
     - Skips any change whose EvalResult.passed is False.
-    - Skips any change where the before text is not found verbatim in the
+    - Refuses publication when the before text is not found verbatim in the
       config file (patch application would be unsafe).
 
     Idempotency:
@@ -65,22 +65,15 @@ class PRPublisher:
         """Publish surviving changes as PRs. Returns a summary of what happened."""
         opened: list[OpenedPR] = []
         skipped_existing = 0
-        skipped_failed_gate = 0
+        if len(result.proposed_changes) != len(result.eval_results):
+            raise ValueError("Every proposed change must have exactly one eval result")
 
-        paired = list(zip(result.proposed_changes, result.eval_results))
+        all_paired = list(zip(result.proposed_changes, result.eval_results))
+        passing = [(change, ev) for change, ev in all_paired if ev.passed and ev.delta > 0 and ev.p_value < 0.05]
+        skipped_failed_gate = len(all_paired) - len(passing)
+        paired = [max(passing, key=lambda item: item[1].delta)] if passing else []
 
         for change, ev in paired:
-            # Hard gate — belt-and-suspenders; optimizer should never emit non-passing changes
-            if not ev.passed:
-                logger.warning(
-                    "Skipping change %s: EvalResult.passed=False (delta=%.3f, p=%.4f)",
-                    change.id,
-                    ev.delta,
-                    ev.p_value,
-                )
-                skipped_failed_gate += 1
-                continue
-
             label = pr_label(change)
 
             existing = self._gateway.find_open_pr(self._repo, label)
@@ -89,13 +82,11 @@ class PRPublisher:
                 skipped_existing += 1
                 continue
 
-            pr = self._open_pr(change, ev)
-            if pr is not None:
-                opened.append(pr)
+            opened.append(self._open_pr(change, ev))
 
         silence = None
         if not opened and skipped_existing == 0:
-            silence = build_silence_report(len(paired))
+            silence = build_silence_report(len(all_paired))
 
         return PublishResult(
             opened=tuple(opened),
@@ -104,47 +95,31 @@ class PRPublisher:
             silence_report=silence,
         )
 
-    def _open_pr(self, change: ProposedChange, ev: EvalResult) -> OpenedPR | None:
-        try:
-            content, sha = self._gateway.get_file(self._repo, self._config_path, self._base_branch)
-        except FileNotFoundError:
-            logger.warning(
-                "Config file %s not found in %s — skipping change %s",
-                self._config_path,
-                self._repo,
-                change.id,
-            )
-            return None
+    def _open_pr(self, change: ProposedChange, ev: EvalResult) -> OpenedPR:
+        content, sha = self._gateway.get_file(self._repo, self._config_path, self._base_branch)
 
         patched = content.replace(change.before, change.after, 1)
         if patched == content:
-            logger.warning(
-                "Before-text not found verbatim in %s — skipping change %s. "
-                "The config may have been updated since this change was generated.",
-                self._config_path,
-                change.id,
+            raise ValueError(
+                f"Before-text for change {change.id} was not found verbatim in {self._config_path}; "
+                "the target may have changed since evaluation"
             )
-            return None
 
         branch = f"anneal/{change.id[:8]}"
         title = build_pr_title(change, ev)
         body = build_pr_body(change, ev)
         label = pr_label(change)
 
-        try:
-            self._gateway.create_branch(self._repo, branch, self._base_branch)
-            self._gateway.update_file(
-                self._repo,
-                self._config_path,
-                patched,
-                sha,
-                branch,
-                f"fix(prompt): {title}",
-            )
-            url = self._gateway.create_pr(self._repo, title, body, branch, self._base_branch, label)
-        except Exception:
-            logger.exception("Failed to open PR for change %s", change.id)
-            return None
+        self._gateway.create_branch(self._repo, branch, self._base_branch)
+        self._gateway.update_file(
+            self._repo,
+            self._config_path,
+            patched,
+            sha,
+            branch,
+            f"fix(prompt): {title}",
+        )
+        url = self._gateway.create_pr(self._repo, title, body, branch, self._base_branch, label)
 
         logger.info("Opened PR for change %s: %s", change.id, url)
         return OpenedPR(url=url, title=title, change_id=change.id)

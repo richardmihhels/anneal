@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime, timedelta
 
 from core.eval.runner import AgentConfig
+from core.eval.split import split
 from core.github.client import FakeGitHubGateway
 from core.testing.generator import generate_dataset
-from shared.models import Alarm, Trace
+from shared.models import Alarm, EvalResult, OptimizationRun, Trace
 from worker.digest import FakeDigestNotifier
 from worker.models import CustomerConfig, PipelineComponents, fake_components
 from worker.pipeline import MIN_TRACES_FOR_OPTIMIZATION, run_optimization_cycle
@@ -117,6 +119,36 @@ def test_full_pipeline_completes() -> None:
     assert saved[0].status == "completed"
 
 
+def test_holdout_is_not_visible_to_clustering(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    traces = generate_dataset(n=150, seed=142)
+    _, holdout = split(traces)
+    holdout_ids = {case.trace.id for case in holdout.cases}
+    clustered_ids: set[str] = set()
+
+    class _CapturingPipeline:
+        def __init__(self, **_: object) -> None:
+            pass
+
+        def run(self, training_traces: list[Trace]) -> list[object]:
+            clustered_ids.update(trace.id for trace in training_traces)
+            return []
+
+    monkeypatch.setattr("worker.pipeline.ClusterPipeline", _CapturingPipeline)
+    customer = _make_customer()
+    asyncio.run(
+        run_optimization_cycle(
+            customer,
+            traces,
+            FakeRunStore(),
+            _make_gateway(customer, traces),
+            _good_components(),
+        )
+    )
+
+    assert clustered_ids
+    assert clustered_ids.isdisjoint(holdout_ids)
+
+
 def test_full_pipeline_emits_stage_events() -> None:
     """Each pipeline stage emits start and completed events."""
     traces = generate_dataset(n=150, seed=42)
@@ -165,17 +197,23 @@ def test_full_pipeline_run_ids_match_events() -> None:
     assert all(e.run_id == run.id for e in events)
 
 
-def test_full_pipeline_opens_prs_when_improvements_found() -> None:
+def test_full_pipeline_opens_only_strongest_pr_when_improvements_found() -> None:
     traces = generate_dataset(n=150, seed=42)
     customer = _make_customer()
     store = FakeRunStore()
     gateway = _make_gateway(customer, traces)
     components = _good_components()
 
-    asyncio.run(run_optimization_cycle(customer, traces, store, gateway, components))
+    run = asyncio.run(run_optimization_cycle(customer, traces, store, gateway, components))
 
-    # Some PRs should have been opened
-    assert len(gateway.opened_prs) > 0
+    assert len(gateway.opened_prs) == 1
+    events = asyncio.run(store.list_events(run.id))
+    publishing = [event for event in events if event.stage == "publishing" and event.event == "completed"]
+    assert len(publishing) == 1
+    assert publishing[0].metadata["prs_opened"] == 1
+    published_change_ids = publishing[0].metadata["published_change_ids"]
+    assert isinstance(published_change_ids, list)
+    assert len(published_change_ids) == 1
 
 
 def test_weekly_digest_sent_once_for_pr_shipped_cycle() -> None:
@@ -201,7 +239,8 @@ def test_weekly_digest_sent_once_for_pr_shipped_cycle() -> None:
     digest = notifier.sent[0]
     assert digest.optimization_run_id == run.id
     assert digest.pr_shipped is True
-    assert "Anneal shipped" in digest.email_body
+    assert len(digest.pr_urls) == 1
+    assert "Anneal shipped 1 PR this week" in digest.email_body
     assert "PRs" in digest.page_body
     assert digest.email_body == digest.page_body
 
@@ -297,6 +336,8 @@ def test_full_pipeline_proposed_change_ids_persisted() -> None:
     # If PRs were opened, proposed_change_ids should be set
     if gateway.opened_prs:
         assert len(run.proposed_change_ids) > 0
+        assert store.all_clusters
+        assert store.all_proposed_changes
 
 
 # ── ingest-check ──────────────────────────────────────────────────────────────
@@ -472,7 +513,7 @@ def test_publishing_crash_marks_run_failed_no_pr() -> None:
     # When the gateway crashes on get_file(), the pipeline's publishing stage
     # catches it and marks the run failed — the right outcome since something
     # went wrong.
-    assert run.status in ("failed", "completed")  # either is acceptable
+    assert run.status == "failed"
 
     # The critical invariant: no PR was opened despite the exception
     # (BrokenGateway.create_pr was never reached, and even if it had been, no
@@ -481,7 +522,10 @@ def test_publishing_crash_marks_run_failed_no_pr() -> None:
     assert stored is not None  # run is persisted
 
     events = asyncio.run(store.list_events(run.id))
-    assert events  # timeline was written before the crash
+    failed_events = [event for event in events if event.event == "failed"]
+    assert len(failed_events) == 1
+    assert failed_events[0].stage == "publishing"
+    assert "GitHub API unavailable" in failed_events[0].message
 
 
 # ── store correctness ─────────────────────────────────────────────────────────
@@ -526,3 +570,63 @@ def test_run_cluster_ids_populated_after_clustering() -> None:
     # If clustering found anything, cluster_ids should be populated
     if run.status == "completed":
         assert isinstance(stored.cluster_ids, list)
+
+
+def test_eval_history_is_scoped_by_organization() -> None:
+    store = FakeRunStore()
+    now = datetime.now(UTC)
+    run_acme = OptimizationRun(
+        id="run-acme",
+        organization_id="org_acme",
+        agent_id="shared-agent-id",
+        created_at=now - timedelta(days=2),
+    )
+    run_beta = OptimizationRun(
+        id="run-beta",
+        organization_id="org_beta",
+        agent_id="shared-agent-id",
+        created_at=now - timedelta(days=2),
+    )
+    asyncio.run(store.create_run(run_acme))
+    asyncio.run(store.create_run(run_beta))
+    asyncio.run(
+        store.save_eval_result(
+            EvalResult(
+                id="eval-acme",
+                optimization_run_id=run_acme.id,
+                baseline_score=0.5,
+                candidate_score=0.7,
+                delta=0.2,
+                p_value=0.01,
+                sample_size=40,
+                passed=True,
+                judge_agreement_rate=0.9,
+            )
+        )
+    )
+    asyncio.run(
+        store.save_eval_result(
+            EvalResult(
+                id="eval-beta",
+                optimization_run_id=run_beta.id,
+                baseline_score=0.5,
+                candidate_score=0.8,
+                delta=0.3,
+                p_value=0.01,
+                sample_size=40,
+                passed=True,
+                judge_agreement_rate=0.9,
+            )
+        )
+    )
+
+    history = asyncio.run(
+        store.list_eval_results(
+            "org_acme",
+            "shared-agent-id",
+            now,
+            limit=25,
+        )
+    )
+
+    assert [result.id for result in history] == ["eval-acme"]

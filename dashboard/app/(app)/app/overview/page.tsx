@@ -62,8 +62,11 @@ function percent(value: number | null): string {
 
 export default async function OverviewPage() {
   const session = await requireSession();
-  const stats = getOverviewStats(session.organizationId);
-  const runs = listRuns(session.organizationId).slice(0, 5);
+  const [stats, allRuns] = await Promise.all([
+    getOverviewStats(session.organizationId),
+    listRuns(session.organizationId),
+  ]);
+  const runs = allRuns.slice(0, 5);
   const sparkPrs = stats.weeklyActivity.map((w) => w.prs);
   const evalSpark = stats.evalScoreTrend
     .map((point) => point.candidate_score)

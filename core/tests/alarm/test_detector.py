@@ -5,14 +5,11 @@ from __future__ import annotations
 import asyncio
 from datetime import UTC, datetime, timedelta
 
-import pytest
-
-from core.alarm.detector import AlarmDetector, TemplateHypothesisGenerator, _proportions_ztest
+from core.alarm.detector import AlarmDetector, _proportions_ztest
 from core.alarm.notifier import FakeEmailNotifier, _format_email_body, _format_subject
 from core.alarm.store import FakeAlarmStore
-from core.testing.generator import generate_dataset_with_spike, generate_dataset
+from core.testing.generator import generate_dataset, generate_dataset_with_spike
 from shared.models import Alarm
-
 
 # ── unit: proportions z-test ──────────────────────────────────────────────────
 
@@ -250,12 +247,12 @@ def test_fake_alarm_store_debounce_lookup() -> None:
         await store.save_alarm(old_alarm)
         await store.save_alarm(recent_alarm)
 
-        result = await store.get_recent_alarm("a", "wrong_tool", within_hours=24)
+        result = await store.get_recent_alarm("org_demo", "a", "wrong_tool", within_hours=24)
         assert result is not None
         assert result.id == recent_alarm.id
 
         # Different category → None
-        result2 = await store.get_recent_alarm("a", "scope_creep", within_hours=24)
+        result2 = await store.get_recent_alarm("org_demo", "a", "scope_creep", within_hours=24)
         assert result2 is None
 
     asyncio.run(_run())

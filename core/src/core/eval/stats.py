@@ -6,6 +6,8 @@ import numpy as np
 from numpy.typing import NDArray
 
 _SIGNIFICANCE_LEVEL = 0.05
+MIN_EVAL_SAMPLE_SIZE = 10
+"""Minimum paired holdout cases required before a candidate may pass."""
 
 
 @dataclass(frozen=True)
@@ -23,8 +25,14 @@ def paired_t_test(baseline_scores: list[float], candidate_scores: list[float]) -
     """
     if len(baseline_scores) != len(candidate_scores):
         raise ValueError("baseline and candidate score lists must be the same length")
-    if len(baseline_scores) < 2:
-        return SignificanceResult(delta=0.0, p_value=1.0, passed=False, sample_size=len(baseline_scores))
+    if len(baseline_scores) < MIN_EVAL_SAMPLE_SIZE:
+        delta = float(np.mean(candidate_scores) - np.mean(baseline_scores)) if baseline_scores else 0.0
+        return SignificanceResult(
+            delta=delta,
+            p_value=1.0,
+            passed=False,
+            sample_size=len(baseline_scores),
+        )
 
     b: NDArray[np.float64] = np.array(baseline_scores, dtype=np.float64)
     c: NDArray[np.float64] = np.array(candidate_scores, dtype=np.float64)
@@ -32,6 +40,15 @@ def paired_t_test(baseline_scores: list[float], candidate_scores: list[float]) -
 
     if delta <= 0:
         return SignificanceResult(delta=delta, p_value=1.0, passed=False, sample_size=len(baseline_scores))
+
+    differences = c - b
+    if np.allclose(differences, differences[0]):
+        return SignificanceResult(
+            delta=delta,
+            p_value=0.0,
+            passed=True,
+            sample_size=len(baseline_scores),
+        )
 
     from scipy import stats  # type: ignore[import-untyped]
 

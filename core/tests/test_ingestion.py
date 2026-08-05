@@ -138,6 +138,22 @@ def test_langsmith_normalizer_produces_trace() -> None:
     assert parent.duration_ms == pytest.approx(6000.0)
 
 
+def test_langsmith_normalizer_uses_declared_outcome() -> None:
+    payload = {
+        **LANGSMITH_PAYLOAD,
+        "extra": {
+            "metadata": {
+                "outcome": "failure",
+                "failure_category": "wrong_tool",
+            }
+        },
+    }
+    trace = normalize_langsmith(payload)
+
+    assert trace.outcome == "failure"
+    assert trace.metadata["failure_category"] == "wrong_tool"
+
+
 def test_langsmith_round_trip(
     client: TestClient,
     fake_trace_repo: FakeTraceRepo,

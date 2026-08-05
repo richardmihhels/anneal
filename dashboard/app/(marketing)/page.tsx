@@ -45,9 +45,9 @@ export default function HomePage() {
             </h1>
 
             <p className="mx-auto mb-10 max-w-xl text-lg leading-relaxed text-[#78776C]">
-              Anneal watches your agent every day, alarms you when a failure
-              category regresses, and once a week opens one holdout-gated PR
-              that makes it measurably better.
+              Anneal records your agent&rsquo;s traces, detects statistically
+              significant failure spikes, and once a week can open one
+              holdout-gated PR that makes it measurably better.
             </p>
 
             <div id="waitlist" className="flex justify-center">

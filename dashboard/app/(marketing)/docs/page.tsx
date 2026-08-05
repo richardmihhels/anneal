@@ -1,101 +1,86 @@
 import type { Metadata } from "next";
-import { MarketingNav } from "@/components/marketing/marketing-nav";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
+import { MarketingNav } from "@/components/marketing/marketing-nav";
 
 export const metadata: Metadata = {
   title: "Docs — Anneal",
-  description: "Anneal SDK reference, quick start, and core concepts.",
+  description: "Anneal SDK reference, deployment modes, and safety model.",
 };
 
-const SDK_INSTALL = `pip install anneal-sdk`;
+const SDK_INSTALL = `pip install "anneal-sdk[langchain] @ git+https://github.com/richardmihhels/anneal.git@main#subdirectory=sdk"`;
 
-const SDK_QUICKSTART = `from anneal import trace, AnnealClient
+const SDK_QUICKSTART = `from anneal_sdk import AnnealClient
 
-# Initialize once at startup
-client = AnnealClient(
-    org_id=os.environ["ANNEAL_ORG_ID"],
-    api_key=os.environ["ANNEAL_API_KEY"],
-    endpoint=os.environ["ANNEAL_ENDPOINT"],
+anneal = AnnealClient.from_env()
+handler = anneal.callback_handler(agent_id="support-agent-v1")
+
+result = graph.invoke(
+    {"messages": messages},
+    config={"callbacks": [handler]},
 )
 
-# Wrap your LangGraph agent
-@trace(agent_id="support-v2", client=client)
-async def run_agent(input: str) -> str:
-    # Your existing LangGraph code — unchanged
-    result = await graph.ainvoke({"input": input})
-    return result["output"]`;
+# Drain queued traces before a short-lived process exits.
+anneal.flush()`;
+
+const SDK_ENV = `export ANNEAL_ENDPOINT=http://localhost:8000
+export ANNEAL_ORG_ID=org_demo
+export ANNEAL_API_KEY=dev_optional`;
+
+const OTEL_EXAMPLE = `curl -X POST "$ANNEAL_ENDPOINT/ingest/otel" \\
+  -H "Authorization: Bearer $ANNEAL_API_KEY" \\
+  -H "X-Anneal-Org: $ANNEAL_ORG_ID" \\
+  -H "Content-Type: application/json" \\
+  --data-binary @otlp-export.json`;
 
 const TRACE_SCHEMA = `{
-  "trace_id": "tr_01HX...",         // auto-generated
-  "session_id": "sess_...",          // your conversation ID
-  "agent_id": "support-v2",
-  "organization_id": "org_...",
+  "id": "trace-id",
+  "organization_id": "org_acme",
+  "agent_id": "support-agent-v1",
+  "session_id": "conversation-id",
+  "created_at": "2026-08-04T09:00:00Z",
   "spans": [
     {
-      "span_id": "sp_...",
-      "name": "llm.completion",
-      "input": "...",
-      "output": "...",
-      "start_time": "2026-05-01T09:00:00Z",
-      "duration_ms": 342
+      "id": "span-id",
+      "trace_id": "trace-id",
+      "name": "tool:lookup_order",
+      "start_time": "2026-08-04T09:00:00Z",
+      "end_time": "2026-08-04T09:00:00.342Z",
+      "duration_ms": 342,
+      "input": {},
+      "output": {},
+      "error": null,
+      "metadata": {}
     }
   ],
-  "outcome": "resolved" | "escalated" | "unknown"
+  "outcome": "success",
+  "metadata": {}
 }`;
 
-const OTEL_EXAMPLE = `from opentelemetry import trace as otel_trace
-from anneal.otel import AnnealExporter
-
-# Add Anneal as an OTLP exporter alongside your existing setup
-exporter = AnnealExporter(
-    endpoint=os.environ["ANNEAL_ENDPOINT"],
-    org_id=os.environ["ANNEAL_ORG_ID"],
-    api_key=os.environ["ANNEAL_API_KEY"],
-)`;
-
-interface Section {
-  id: string;
-  title: string;
-}
-
-const TOC: Section[] = [
-  { id: "quickstart", title: "Quick start" },
-  { id: "installation", title: "Installation" },
-  { id: "instrument", title: "Instrument your agent" },
-  { id: "otel", title: "OpenTelemetry" },
-  { id: "concepts", title: "Core concepts" },
-  { id: "traces", title: "Traces and spans" },
-  { id: "eval-gate", title: "The eval gate" },
-  { id: "pr-format", title: "The PR format" },
-  { id: "reference", title: "SDK reference" },
-  { id: "trace-decorator", title: "@trace decorator" },
-  { id: "schema", title: "Trace schema" },
-];
+const TOC = [
+  ["quickstart", "Quick start"],
+  ["ingestion", "Ingestion"],
+  ["concepts", "Core concepts"],
+  ["safety", "Safety gate"],
+  ["configuration", "Worker configuration"],
+  ["reference", "SDK reference"],
+] as const;
 
 export default function DocsPage() {
   return (
     <>
       <MarketingNav />
-
-      <div className="mx-auto max-w-5xl px-5 pb-24 pt-28">
+      <main id="main-content" className="mx-auto max-w-5xl px-5 pb-24 pt-28">
         <div className="lg:grid lg:grid-cols-[220px_1fr] lg:gap-12">
-          {/* Sidebar TOC */}
           <aside className="hidden lg:block">
-            <nav
-              aria-label="Documentation navigation"
-              className="sticky top-24"
-            >
+            <nav aria-label="Documentation navigation" className="sticky top-24">
               <p className="mb-3 font-mono text-[10px] font-medium uppercase tracking-widest text-[#B5B4AE]">
                 On this page
               </p>
-              <ul className="space-y-0.5" role="list">
-                {TOC.map((item) => (
-                  <li key={item.id}>
-                    <a
-                      href={`#${item.id}`}
-                      className="block rounded py-1 pl-2 text-sm text-[#78776C] transition-colors hover:text-[#111110] focus:outline-none focus:underline"
-                    >
-                      {item.title}
+              <ul className="space-y-0.5">
+                {TOC.map(([id, title]) => (
+                  <li key={id}>
+                    <a className="block rounded py-1 pl-2 text-sm text-[#78776C] hover:text-[#111110]" href={`#${id}`}>
+                      {title}
                     </a>
                   </li>
                 ))}
@@ -103,9 +88,7 @@ export default function DocsPage() {
             </nav>
           </aside>
 
-          {/* Content */}
           <article className="min-w-0">
-            {/* Page header */}
             <header className="mb-12 border-b border-[#E3E2DA] pb-10">
               <p className="mb-3 font-mono text-xs font-medium uppercase tracking-widest text-[#B5B4AE]">
                 Documentation
@@ -114,269 +97,162 @@ export default function DocsPage() {
                 Getting started
               </h1>
               <p className="text-base leading-relaxed text-[#78776C]">
-                Anneal instruments your existing LangGraph agent without
-                changing your logic. Traces flow in, the weekly optimization
-                job runs, and a PR appears in your repo if something is worth
-                shipping.
+                Anneal is a self-hosted beta for LangGraph and LangChain agents.
+                It accepts scrubbed traces, clusters recurring failures from a
+                training split, and evaluates focused prompt changes on a
+                separate holdout before it can open one GitHub pull request.
               </p>
             </header>
 
-            {/* Quick start */}
-            <section id="quickstart" aria-labelledby="quickstart-heading" className="mb-14 scroll-mt-24">
-              <h2
-                id="quickstart-heading"
-                className="mb-6 text-xl font-semibold tracking-tight text-[#111110]"
-              >
-                Quick start
-              </h2>
-
-              <ol className="space-y-8" role="list">
+            <DocSection id="quickstart" title="Quick start">
+              <ol className="space-y-8">
                 <li>
-                  <h3 id="installation" className="mb-3 font-semibold text-[#111110] scroll-mt-24">
-                    1. Install the SDK
-                  </h3>
+                  <h3 className="mb-3 font-semibold text-[#111110]">1. Install the SDK</h3>
+                  <p className="mb-3 text-sm leading-relaxed text-[#78776C]">
+                    Until the first tagged PyPI release, install directly from this repository.
+                  </p>
                   <CodeBlock lang="bash" code={SDK_INSTALL} />
                 </li>
                 <li>
-                  <h3 id="instrument" className="mb-3 font-semibold text-[#111110] scroll-mt-24">
-                    2. Instrument your agent
-                  </h3>
+                  <h3 className="mb-3 font-semibold text-[#111110]">2. Configure the client</h3>
+                  <CodeBlock lang="bash" code={SDK_ENV} />
+                </li>
+                <li>
+                  <h3 className="mb-3 font-semibold text-[#111110]">3. Attach the callback</h3>
                   <p className="mb-3 text-sm leading-relaxed text-[#78776C]">
-                    Wrap your agent entrypoint with the{" "}
-                    <code className="rounded bg-[#EEECEA] px-1.5 py-0.5 font-mono text-xs text-[#444440]">
-                      @trace
-                    </code>{" "}
-                    decorator. Your existing LangGraph code is unchanged.
+                    The callback implements the LangChain protocol by duck typing,
+                    so the SDK does not add LangChain as a runtime requirement.
                   </p>
                   <CodeBlock lang="python" code={SDK_QUICKSTART} />
                 </li>
-                <li>
-                  <h3 className="mb-3 font-semibold text-[#111110]">
-                    3. Connect your GitHub repo
-                  </h3>
-                  <p className="text-sm leading-relaxed text-[#78776C]">
-                    Install the Anneal GitHub App on the repo that contains
-                    your agent prompt. Anneal will open PRs against that repo&rsquo;s
-                    default branch once a week when an improvement clears the
-                    eval gate.
-                  </p>
-                  <div className="mt-3 rounded-lg border border-[#E3E2DA] bg-[#FAFAF8] px-4 py-3 text-sm text-[#78776C]">
-                    GitHub App install link is provided in the{" "}
-                    <a
-                      href="/app/connect"
-                      className="text-[#2450B0] underline underline-offset-2 hover:no-underline"
-                    >
-                      dashboard → Connect
-                    </a>{" "}
-                    screen.
-                  </div>
-                </li>
               </ol>
-            </section>
+            </DocSection>
 
-            {/* OpenTelemetry */}
-            <section id="otel" aria-labelledby="otel-heading" className="mb-14 scroll-mt-24">
-              <h2
-                id="otel-heading"
-                className="mb-3 text-xl font-semibold tracking-tight text-[#111110]"
-              >
-                OpenTelemetry
-              </h2>
+            <DocSection id="ingestion" title="Ingestion">
               <p className="mb-4 text-sm leading-relaxed text-[#78776C]">
-                If you already emit OTLP traces, add Anneal as an additional
-                exporter. No SDK decorator needed.
+                The callback sends LangSmith-shaped runs to <InlineCode>/ingest/langsmith</InlineCode>.
+                Existing OpenTelemetry collectors can instead post an OTLP JSON
+                export directly to <InlineCode>/ingest/otel</InlineCode>; Anneal
+                does not currently ship a custom OpenTelemetry exporter.
               </p>
-              <CodeBlock lang="python" code={OTEL_EXAMPLE} />
-            </section>
+              <CodeBlock lang="bash" code={OTEL_EXAMPLE} />
+              <p className="mt-4 text-sm leading-relaxed text-[#78776C]">
+                Production requests require a bearer key and organization header.
+                The authenticated organization always overrides trace metadata,
+                and likely credential fields are scrubbed before persistence.
+              </p>
+            </DocSection>
 
-            <hr className="my-14 border-[#E3E2DA]" />
-
-            {/* Core concepts */}
-            <section id="concepts" aria-labelledby="concepts-heading" className="mb-14 scroll-mt-24">
-              <h2
-                id="concepts-heading"
-                className="mb-8 text-2xl font-semibold tracking-tight text-[#111110]"
-              >
-                Core concepts
-              </h2>
-
-              <div className="space-y-10">
-                <div id="traces" className="scroll-mt-24">
-                  <h3 className="mb-2 text-base font-semibold text-[#111110]">
-                    Traces and spans
-                  </h3>
-                  <p className="text-sm leading-relaxed text-[#78776C]">
-                    A <strong className="font-medium text-[#444440]">trace</strong> is one
-                    complete conversation between a user and your agent. A{" "}
-                    <strong className="font-medium text-[#444440]">span</strong> is one
-                    step inside that conversation—an LLM call, a tool
-                    invocation, a retrieval. Anneal stores spans in ClickHouse
-                    and uses them to compute failure clusters.
-                  </p>
-                  <p className="mt-3 text-sm leading-relaxed text-[#78776C]">
-                    Each trace has an{" "}
-                    <code className="rounded bg-[#EEECEA] px-1.5 py-0.5 font-mono text-xs text-[#444440]">
-                      outcome
-                    </code>{" "}
-                    field:{" "}
-                    <code className="rounded bg-[#EEECEA] px-1.5 py-0.5 font-mono text-xs text-[#444440]">
-                      resolved
-                    </code>
-                    ,{" "}
-                    <code className="rounded bg-[#EEECEA] px-1.5 py-0.5 font-mono text-xs text-[#444440]">
-                      escalated
-                    </code>
-                    , or{" "}
-                    <code className="rounded bg-[#EEECEA] px-1.5 py-0.5 font-mono text-xs text-[#444440]">
-                      unknown
-                    </code>
-                    . Failure clustering focuses on{" "}
-                    <code className="rounded bg-[#EEECEA] px-1.5 py-0.5 font-mono text-xs text-[#444440]">
-                      escalated
-                    </code>{" "}
-                    traces by default.
-                  </p>
-                </div>
-
-                <div id="eval-gate" className="scroll-mt-24">
-                  <h3 className="mb-2 text-base font-semibold text-[#111110]">
-                    The eval gate
-                  </h3>
-                  <p className="text-sm leading-relaxed text-[#78776C]">
-                    Before a prompt mutation can become a PR, it must beat the
-                    current baseline on a{" "}
-                    <strong className="font-medium text-[#444440]">
-                      held-out eval set
-                    </strong>{" "}
-                    (p&nbsp;&lt;&nbsp;0.05, one-sided). The holdout set is
-                    split once per week from incoming traces and is never used
-                    during optimization—it cannot be overfit.
-                  </p>
-                  <p className="mt-3 text-sm leading-relaxed text-[#78776C]">
-                    The judge is an LLM-as-judge calibrated against a
-                    human-labeled seed set. Calibration agreement rate is
-                    logged on every run and visible in the dashboard. If
-                    agreement drops below 80%, the run is flagged for review.
-                  </p>
-                </div>
-
-                <div id="pr-format" className="scroll-mt-24">
-                  <h3 className="mb-2 text-base font-semibold text-[#111110]">
-                    The PR format
-                  </h3>
-                  <p className="text-sm leading-relaxed text-[#78776C]">
-                    Every PR Anneal opens follows a fixed structure: a
-                    one-line summary, one before/after example, the eval delta
-                    with significance, and a{" "}
-                    <strong className="font-medium text-[#444440]">
-                      &ldquo;do not merge if&rdquo;
-                    </strong>{" "}
-                    guard—a sentence describing the conditions under which this
-                    change would be harmful. Nothing gets merged without human
-                    review.
-                  </p>
-                </div>
+            <DocSection id="concepts" title="Core concepts">
+              <div className="space-y-7 text-sm leading-relaxed text-[#78776C]">
+                <Concept title="Trace and span">
+                  A trace is one agent run or conversation. Spans are its nested
+                  chain, model, and tool operations. Postgres stores replayable
+                  trace payloads and product metadata; ClickHouse stores spans.
+                </Concept>
+                <Concept title="Failure cluster">
+                  Anneal identifies failures, embeds their compact interaction
+                  context, discards HDBSCAN noise, and labels only repeated groups.
+                </Concept>
+                <Concept title="Silent week">
+                  Too little data, no stable cluster, weak judge calibration, a
+                  non-significant delta, or an existing equivalent PR all result
+                  in no new pull request. That is a successful safe outcome.
+                </Concept>
               </div>
-            </section>
+            </DocSection>
 
-            <hr className="my-14 border-[#E3E2DA]" />
-
-            {/* SDK reference */}
-            <section id="reference" aria-labelledby="reference-heading" className="mb-14 scroll-mt-24">
-              <h2
-                id="reference-heading"
-                className="mb-8 text-2xl font-semibold tracking-tight text-[#111110]"
-              >
-                SDK reference
-              </h2>
-
-              <div className="space-y-10">
-                <div id="trace-decorator" className="scroll-mt-24">
-                  <h3 className="mb-1 font-mono text-sm font-semibold text-[#111110]">
-                    @trace
-                  </h3>
-                  <p className="mb-4 text-sm leading-relaxed text-[#78776C]">
-                    Decorator that wraps an async function and records a trace
-                    for each invocation.
-                  </p>
-                  <div className="overflow-hidden rounded-lg border border-[#E3E2DA]">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-[#E3E2DA] bg-[#F2F1ED]">
-                          <th className="px-4 py-2.5 text-left font-medium text-[#444440]">
-                            Parameter
-                          </th>
-                          <th className="px-4 py-2.5 text-left font-medium text-[#444440]">
-                            Type
-                          </th>
-                          <th className="px-4 py-2.5 text-left font-medium text-[#444440]">
-                            Description
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#E3E2DA]">
-                        {[
-                          ["agent_id", "str", "Stable identifier for this agent. Used for clustering and PR targeting."],
-                          ["client", "AnnealClient", "SDK client instance. Defaults to environment variable config."],
-                          ["outcome_fn", "Callable | None", "Optional function(result) → outcome. Infers from result if omitted."],
-                          ["session_id_fn", "Callable | None", "Optional function(kwargs) → session_id. Auto-generated if omitted."],
-                        ].map(([param, type, desc]) => (
-                          <tr key={param as string} className="bg-white">
-                            <td className="px-4 py-3 font-mono text-xs text-[#2450B0]">
-                              {param}
-                            </td>
-                            <td className="px-4 py-3 font-mono text-xs text-[#444440]">
-                              {type}
-                            </td>
-                            <td className="px-4 py-3 text-xs text-[#78776C]">
-                              {desc}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                <div id="schema" className="scroll-mt-24">
-                  <h3 className="mb-3 text-base font-semibold text-[#111110]">
-                    Trace schema
-                  </h3>
-                  <p className="mb-3 text-sm leading-relaxed text-[#78776C]">
-                    The full trace JSON sent to{" "}
-                    <code className="rounded bg-[#EEECEA] px-1.5 py-0.5 font-mono text-xs text-[#444440]">
-                      POST /ingest
-                    </code>
-                    :
-                  </p>
-                  <CodeBlock lang="json" code={TRACE_SCHEMA} />
-                </div>
+            <DocSection id="safety" title="Safety gate">
+              <div className="space-y-4 text-sm leading-relaxed text-[#78776C]">
+                <p>
+                  Anneal deterministically reserves 20% of traces before
+                  clustering. Clustering and mutation see only training traces;
+                  the baseline and candidate are replayed on the same holdout cases.
+                </p>
+                <p>
+                  A candidate must improve the paired mean and pass a one-sided
+                  paired t-test at <InlineCode>p &lt; 0.05</InlineCode>. The LLM
+                  judge is calibrated against human-labeled pass/fail examples and
+                  must reach at least 75% agreement. The publisher independently
+                  rechecks the gate and selects only the strongest surviving change.
+                </p>
+                <p>
+                  Anneal opens a PR; it never merges one. The PR includes the
+                  before/after prompt, holdout statistics, a representative failure,
+                  and a do-not-merge guard for human review.
+                </p>
               </div>
-            </section>
+            </DocSection>
 
-            {/* Feedback prompt */}
-            <div className="rounded-lg border border-[#E3E2DA] bg-[#F2F1ED] px-6 py-5">
-              <p className="text-sm font-medium text-[#111110]">
-                Something missing?
+            <DocSection id="configuration" title="Worker configuration">
+              <p className="mb-4 text-sm leading-relaxed text-[#78776C]">
+                Copy <InlineCode>anneal.example.yml</InlineCode> and provide the
+                organization, agent, GitHub repository, prompt file, baseline
+                prompt, and at least four calibration examples containing both
+                pass and fail labels. Unknown fields are rejected.
               </p>
-              <p className="mt-1 text-sm text-[#78776C]">
-                These docs cover the v1 SDK. If your setup isn&rsquo;t covered,{" "}
-                <a
-                  href="mailto:docs@anneal.dev"
-                  className="text-[#2450B0] underline underline-offset-2 hover:no-underline"
-                >
-                  email us
-                </a>
-                .
+              <p className="text-sm leading-relaxed text-[#78776C]">
+                Production also requires Postgres, OpenAI embeddings, Anthropic
+                judge/mutation credentials, a GitHub App installation, and a
+                customer-owned replay endpoint. The replay endpoint receives a
+                scrubbed trace plus candidate prompt and must return
+                <InlineCode>{'{"response":"..."}'}</InlineCode>.
               </p>
+            </DocSection>
+
+            <DocSection id="reference" title="SDK reference">
+              <div className="overflow-hidden rounded-lg border border-[#E3E2DA]">
+                <table className="w-full text-sm">
+                  <thead className="border-b border-[#E3E2DA] bg-[#F2F1ED] text-left text-[#444440]">
+                    <tr><th className="px-4 py-2.5">API</th><th className="px-4 py-2.5">Purpose</th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#E3E2DA] bg-white text-xs text-[#78776C]">
+                    <RefRow api="AnnealClient(endpoint, api_key, organization_id=...)" purpose="Start a thread-safe client with a bounded background queue." />
+                    <RefRow api="AnnealClient.from_env()" purpose="Read ANNEAL_ENDPOINT, ANNEAL_API_KEY, and ANNEAL_ORG_ID." />
+                    <RefRow api="callback_handler(agent_id)" purpose="Create a LangChain/LangGraph callback handler for one stable agent ID." />
+                    <RefRow api="flush()" purpose="Wait until queued trace deliveries have been attempted." />
+                    <RefRow api="close()" purpose="Drain the queue and stop the worker thread." />
+                  </tbody>
+                </table>
+              </div>
+              <h3 className="mb-3 mt-8 font-semibold text-[#111110]">Normalized trace schema</h3>
+              <CodeBlock lang="json" code={TRACE_SCHEMA} />
+              <p className="mt-3 text-xs leading-relaxed text-[#78776C]">
+                Outcome values are <InlineCode>success</InlineCode>, <InlineCode>failure</InlineCode>, or <InlineCode>unknown</InlineCode>.
+              </p>
+            </DocSection>
+
+            <div className="rounded-lg border border-[#E3E2DA] bg-[#F2F1ED] px-6 py-5 text-sm text-[#78776C]">
+              The repository also includes local demo, production deployment,
+              SDK, security, and safety documentation alongside the source.
             </div>
           </article>
         </div>
-      </div>
-
+      </main>
       <MarketingFooter />
     </>
   );
+}
+
+function DocSection({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
+  return (
+    <section id={id} className="mb-14 scroll-mt-24 border-b border-[#E3E2DA] pb-14">
+      <h2 className="mb-6 text-xl font-semibold tracking-tight text-[#111110]">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+function Concept({ title, children }: { title: string; children: React.ReactNode }) {
+  return <p><strong className="font-medium text-[#444440]">{title}.</strong>{" "}{children}</p>;
+}
+
+function RefRow({ api, purpose }: { api: string; purpose: string }) {
+  return <tr><td className="px-4 py-3 font-mono text-[#2450B0]">{api}</td><td className="px-4 py-3">{purpose}</td></tr>;
+}
+
+function InlineCode({ children }: { children: React.ReactNode }) {
+  return <code className="rounded bg-[#EEECEA] px-1.5 py-0.5 font-mono text-xs text-[#444440]">{children}</code>;
 }
 
 function CodeBlock({ code, lang }: { code: string; lang: string }) {

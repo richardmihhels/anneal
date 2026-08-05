@@ -80,13 +80,22 @@ async def run_optimization_cycle(
         return run
 
     # ── clustering ────────────────────────────────────────────────────────────
+    # Reserve the holdout before clustering or mutation. Only the evaluation
+    # harness below may inspect holdout cases.
+    train, holdout = split(traces)
+    train_traces = [case.trace for case in train.cases]
+
     await _emit(
         store,
         run.id,
         "clustering",
         "started",
-        f"Clustering {len(traces)} traces",
-        metadata={"trace_count": len(traces)},
+        f"Clustering {len(train_traces)} training traces",
+        metadata={
+            "trace_count": len(traces),
+            "train_size": len(train_traces),
+            "holdout_size": len(holdout.cases),
+        },
     )
     try:
         pipeline = ClusterPipeline(
@@ -94,7 +103,8 @@ async def run_optimization_cycle(
             judge=components.clustering_judge,
             labeler=components.labeler,
         )
-        clusters = pipeline.run(traces)
+        clusters = pipeline.run(train_traces)
+        await store.save_clusters(run.id, clusters)
         run = run.model_copy(update={"cluster_ids": [c.id for c in clusters]})
         await store.update_run(run)
         await _emit(
@@ -133,8 +143,6 @@ async def run_optimization_cycle(
         metadata={"cluster_count": len(clusters)},
     )
     try:
-        train, holdout = split(traces)
-
         harness = EvalHarness(
             runner=components.eval_runner,
             judge=components.eval_judge,
@@ -155,17 +163,14 @@ async def run_optimization_cycle(
 
         opt_result = optimizer.optimize(
             clusters=clusters,
-            traces=traces,
+            traces=train_traces,
             baseline=baseline,
             holdout=holdout,
             run_id=run.id,
         )
 
         # Persist eval results for health time series — every cycle, not just when PRs ship.
-        eval_results_to_save = [
-            er.model_copy(update={"optimization_run_id": run.id})
-            for er in opt_result.eval_results
-        ]
+        eval_results_to_save = [er.model_copy(update={"optimization_run_id": run.id}) for er in opt_result.eval_results]
         if not eval_results_to_save:
             # Silent week: run baseline self-eval to anchor the time series.
             try:
@@ -185,6 +190,7 @@ async def run_optimization_cycle(
             except Exception as exc:
                 logger.warning("Baseline self-eval failed (health time series will have a gap): %s", exc)
 
+        await store.save_proposed_changes(list(opt_result.proposed_changes))
         for er in eval_results_to_save:
             await store.save_eval_result(er)
 
@@ -224,6 +230,7 @@ async def run_optimization_cycle(
         pub_result = publisher.publish(opt_result)
 
         pr_urls = [pr.url for pr in pub_result.opened]
+        published_change_ids = [pr.change_id for pr in pub_result.opened]
         await _emit(
             store,
             run.id,
@@ -235,6 +242,7 @@ async def run_optimization_cycle(
                 "prs_skipped_existing": pub_result.skipped_existing,
                 "prs_skipped_gate": pub_result.skipped_failed_gate,
                 "pr_urls": pr_urls,
+                "published_change_ids": published_change_ids,
                 "silence": pub_result.silence_report,
             },
         )
@@ -316,7 +324,10 @@ async def _send_weekly_digest(
     week_start = week_end - timedelta(days=7)
     events = await store.list_events(run.id)
     previous_eval_results = await store.list_eval_results(
-        run.agent_id, run.created_at, limit=25
+        run.organization_id,
+        run.agent_id,
+        run.created_at,
+        limit=25,
     )
     alarms = await store.list_alarms(run.organization_id, run.agent_id, week_start, week_end)
     digest = compose_weekly_digest(

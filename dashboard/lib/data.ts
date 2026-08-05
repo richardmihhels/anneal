@@ -19,9 +19,33 @@ import type {
 
 const FALLBACK_ORG_ID = "org_demo";
 
-function getData(): SeedData {
-  const filePath = join(process.cwd(), "data", "seed.json");
-  return JSON.parse(readFileSync(filePath, "utf-8")) as SeedData;
+async function getData(organizationId: string): Promise<SeedData> {
+  const source = process.env.ANNEAL_DATA_SOURCE ?? "seed";
+  if (source === "seed") {
+    const filePath = join(process.cwd(), "data", "seed.json");
+    const data = JSON.parse(readFileSync(filePath, "utf-8")) as SeedData;
+    return scopedData(data, organizationId);
+  }
+  if (source !== "api") {
+    throw new Error("ANNEAL_DATA_SOURCE must be either 'seed' or 'api'");
+  }
+
+  const endpoint = process.env.ANNEAL_ENDPOINT?.replace(/\/$/, "");
+  if (!endpoint) {
+    throw new Error("ANNEAL_ENDPOINT is required when ANNEAL_DATA_SOURCE=api");
+  }
+  const headers: Record<string, string> = { "X-Anneal-Org": organizationId };
+  const apiKey = process.env.ANNEAL_API_KEY;
+  if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+
+  const response = await fetch(`${endpoint}/dashboard/data`, {
+    headers,
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(`Anneal API returned ${response.status} while loading dashboard data`);
+  }
+  return scopedData((await response.json()) as SeedData, organizationId);
 }
 
 function runOrgId(run: OptimizationRun): string {
@@ -63,6 +87,12 @@ function numberFromMetadata(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
+function stringArrayFromMetadata(value: unknown): string[] | null {
+  return Array.isArray(value) && value.every((item) => typeof item === "string")
+    ? value
+    : null;
+}
+
 function eventsForRun(events: RunEvent[], runId: string): RunEvent[] {
   return events
     .filter((event) => event.run_id === runId)
@@ -88,7 +118,7 @@ function summarizeGate(run: OptimizationRun, events: RunEvent[]): GateSummary {
       numberFromMetadata(optimizationDone?.metadata.holdout_size) ?? null,
     prs_opened:
       numberFromMetadata(publishingDone?.metadata.prs_opened) ??
-      run.proposed_change_ids.length,
+      Math.min(run.proposed_change_ids.length, 1),
   };
 }
 
@@ -112,10 +142,11 @@ function evalsForRun(
 
 function detailForRun(run: OptimizationRun, data: SeedData): RunDetail {
   const events = eventsForRun(data.events, run.id);
+  const gate = summarizeGate(run, events);
   const evalById = new Map<string, EvalResult>(
     data.eval_results.map((evalResult) => [evalResult.id, evalResult]),
   );
-  const proposedChanges: ProposedChangeWithEval[] = data.proposed_changes
+  const changesWithEval = data.proposed_changes
     .filter((change) => change.optimization_run_id === run.id)
     .map((change) => ({
       ...change,
@@ -125,6 +156,25 @@ function detailForRun(run: OptimizationRun, data: SeedData): RunDetail {
     }));
   const publishingDone = events.find(
     (event) => event.stage === "publishing" && event.event === "completed",
+  );
+  const publishedFromEvent = stringArrayFromMetadata(
+    publishingDone?.metadata.published_change_ids,
+  );
+  const inferredPublishedIds = changesWithEval
+    .slice()
+    .sort(
+      (a, b) =>
+        (b.eval_result?.delta ?? Number.NEGATIVE_INFINITY) -
+        (a.eval_result?.delta ?? Number.NEGATIVE_INFINITY),
+    )
+    .slice(0, gate.prs_opened)
+    .map((change) => change.id);
+  const publishedIds = new Set(publishedFromEvent ?? inferredPublishedIds);
+  const proposedChanges: ProposedChangeWithEval[] = changesWithEval.map(
+    (change) => ({
+      ...change,
+      published: publishedIds.has(change.id),
+    }),
   );
   const silenceRaw = publishingDone?.metadata.silence;
 
@@ -139,12 +189,12 @@ function detailForRun(run: OptimizationRun, data: SeedData): RunDetail {
       typeof silenceRaw === "string" && silenceRaw.length > 0
         ? silenceRaw
         : null,
-    gate: summarizeGate(run, events),
+    gate,
   };
 }
 
-export function listRuns(organizationId: string): RunSummary[] {
-  const data = scopedData(getData(), organizationId);
+export async function listRuns(organizationId: string): Promise<RunSummary[]> {
+  const data = await getData(organizationId);
   const evalById = new Map<string, EvalResult>(
     data.eval_results.map((evalResult) => [evalResult.id, evalResult]),
   );
@@ -169,40 +219,40 @@ export function listRuns(organizationId: string): RunSummary[] {
     });
 }
 
-export function listRunDetails(organizationId: string): RunDetail[] {
-  const data = scopedData(getData(), organizationId);
+export async function listRunDetails(organizationId: string): Promise<RunDetail[]> {
+  const data = await getData(organizationId);
   return data.runs
     .slice()
     .sort((a, b) => b.created_at.localeCompare(a.created_at))
     .map((run) => detailForRun(run, data));
 }
 
-export function getRun(id: string, organizationId: string): RunDetail | null {
-  const data = scopedData(getData(), organizationId);
+export async function getRun(id: string, organizationId: string): Promise<RunDetail | null> {
+  const data = await getData(organizationId);
   const run = data.runs.find((candidate) => candidate.id === id);
   return run ? detailForRun(run, data) : null;
 }
 
-export function getWeeklyDigest(
+export async function getWeeklyDigest(
   id: string,
   organizationId: string,
-): WeeklyDigest | null {
-  const data = scopedData(getData(), organizationId);
+): Promise<WeeklyDigest | null> {
+  const data = await getData(organizationId);
   return data.weekly_digests?.find((digest) => digest.id === id) ?? null;
 }
 
-export function getWeeklyDigestForRun(
+export async function getWeeklyDigestForRun(
   runId: string,
   organizationId: string,
-): WeeklyDigest | null {
-  const data = scopedData(getData(), organizationId);
+): Promise<WeeklyDigest | null> {
+  const data = await getData(organizationId);
   return (
     data.weekly_digests?.find((digest) => digest.optimization_run_id === runId) ??
     null
   );
 }
 
-export function getOverviewStats(organizationId: string): {
+export async function getOverviewStats(organizationId: string): Promise<{
   totalRuns: number;
   prsShipped: number;
   clustersFound: number;
@@ -210,8 +260,8 @@ export function getOverviewStats(organizationId: string): {
   weeklyActivity: { date: string; clusters: number; prs: number }[];
   evalScoreTrend: EvalScorePoint[];
   latestEvalScore: number | null;
-} {
-  const data = scopedData(getData(), organizationId);
+}> {
+  const data = await getData(organizationId);
   const evalById = new Map<string, EvalResult>(
     data.eval_results.map((evalResult) => [evalResult.id, evalResult]),
   );
@@ -283,14 +333,14 @@ function _normalizeCategory(description: string): string {
   return description.slice(0, 35);
 }
 
-export function getHealthData(organizationId: string): {
+export async function getHealthData(organizationId: string): Promise<{
   agentId: string;
   evalTrend: HealthEvalPoint[];
   categoryTrend: CategoryWeekPoint[];
   activeAlarms: Alarm[];
   totalWeeks: number;
-} {
-  const data = scopedData(getData(), organizationId);
+}> {
+  const data = await getData(organizationId);
   const evalResultsByRunId = new Map<string, EvalResult[]>();
   for (const er of data.eval_results) {
     if (er.optimization_run_id) {

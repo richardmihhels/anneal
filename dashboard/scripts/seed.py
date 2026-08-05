@@ -117,6 +117,16 @@ def run_good_cycle(seed: int, days_ago: float) -> dict[str, Any]:
 
     survivors = len(opt_result.proposed_changes)
     rejected = len(clusters) - survivors
+    published_change = (
+        max(
+            zip(opt_result.proposed_changes, opt_result.eval_results, strict=True),
+            key=lambda pair: pair[1].delta,
+        )[0]
+        if survivors > 0
+        else None
+    )
+    published_change_ids = [published_change.id] if published_change is not None else []
+    prs_opened = len(published_change_ids)
 
     run = OptimizationRun(
         id=run_id,
@@ -161,23 +171,30 @@ def run_good_cycle(seed: int, days_ago: float) -> dict[str, Any]:
             t0 + timedelta(seconds=48),
             {"survivors": survivors, "rejected": rejected, "holdout_size": len(holdout.cases)},
         ),
-        _ev(run_id, "publishing", "started", f"Publishing {survivors} change(s)", t0 + timedelta(seconds=49)),
+        _ev(
+            run_id,
+            "publishing",
+            "started",
+            f"Selecting the strongest of {survivors} gated candidate(s)",
+            t0 + timedelta(seconds=49),
+        ),
         _ev(
             run_id,
             "publishing",
             "completed",
-            f"Opened {survivors} PR(s)",
+            f"Opened {prs_opened} PR" if prs_opened == 1 else f"Opened {prs_opened} PRs",
             t0 + timedelta(seconds=52),
-            {"prs_opened": survivors, "silence": None},
+            {
+                "prs_opened": prs_opened,
+                "published_change_ids": published_change_ids,
+                "silence": None,
+            },
         ),
         _ev(run_id, "done", "completed", "Optimization cycle complete.", t0 + timedelta(seconds=53)),
     ]
 
     # Attach optimization_run_id so the health view can group evals by run.
-    eval_results_with_run = [
-        er.model_copy(update={"optimization_run_id": run_id})
-        for er in opt_result.eval_results
-    ]
+    eval_results_with_run = [er.model_copy(update={"optimization_run_id": run_id}) for er in opt_result.eval_results]
 
     return {
         "run": run,
@@ -404,19 +421,22 @@ def _make_digests(
     events_by_run = {run.id: [event for event in events if event.run_id == run.id] for run in runs}
     clusters_by_id = {cluster.id: cluster for cluster in clusters}
     changes_by_run = {
-        run.id: [change for change in proposed_changes if change.optimization_run_id == run.id]
-        for run in runs
+        run.id: [change for change in proposed_changes if change.optimization_run_id == run.id] for run in runs
     }
-    evals_by_run = {
-        run.id: [result for result in eval_results if result.optimization_run_id == run.id]
-        for run in runs
-    }
+    evals_by_run = {run.id: [result for result in eval_results if result.optimization_run_id == run.id] for run in runs}
 
     previous: list[EvalResult] = []
     for run in sorted(runs, key=lambda r: r.created_at):
         run_clusters = [clusters_by_id[cid] for cid in run.cluster_ids if cid in clusters_by_id]
         run_changes = changes_by_run[run.id]
         run_evals = evals_by_run[run.id]
+        publishing_event = next(
+            (event for event in events_by_run[run.id] if event.stage == "publishing" and event.event == "completed"),
+            None,
+        )
+        published_change_ids = (
+            publishing_event.metadata.get("published_change_ids", []) if publishing_event is not None else []
+        )
         week_start = run.created_at - timedelta(days=7)
         week_alarms = [
             alarm
@@ -430,6 +450,7 @@ def _make_digests(
                 change_id=change.id,
             )
             for i, change in enumerate(run_changes)
+            if change.id in published_change_ids
         ]
         digest = compose_weekly_digest(
             run=run,
@@ -441,11 +462,7 @@ def _make_digests(
             alarms=week_alarms,
             prs=prs,
         )
-        digests.append(
-            digest.model_copy(
-                update={"id": f"digest-{run.id[:12]}", "generated_at": run.created_at}
-            )
-        )
+        digests.append(digest.model_copy(update={"id": f"digest-{run.id[:12]}", "generated_at": run.created_at}))
         previous.extend(run_evals)
 
     return digests
@@ -468,8 +485,10 @@ def main() -> None:
     for kind, seed, days_ago in scenarios:
         print(f"  {kind:<8} seed={str(seed):<4} days_ago={days_ago}")
         if kind == "good":
+            assert seed is not None
             r = run_good_cycle(seed=seed, days_ago=days_ago)
         elif kind == "silent":
+            assert seed is not None
             r = run_silent_cycle(seed=seed, days_ago=days_ago)
         elif kind == "failed":
             r = run_failed_cycle(days_ago=days_ago)

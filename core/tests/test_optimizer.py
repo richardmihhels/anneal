@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import sys
+from types import SimpleNamespace
+
+import pytest
 from core.eval import AgentConfig, EvalHarness, split
 from core.optimizer import FakeMutator, Optimizer
-from core.optimizer.mutator import MUTATION_BUDGET, PromptMutator
+from core.optimizer.mutator import MUTATION_BUDGET, GEPAMutator, PromptMutator
 from core.testing.generator import generate_dataset, generate_trace
 from shared.models import FailureCluster
 
@@ -74,6 +78,33 @@ def test_mutation_budget_constant_is_4() -> None:
     assert MUTATION_BUDGET == 4
 
 
+def test_gepa_mutator_disables_dspy_disk_cache(monkeypatch: pytest.MonkeyPatch) -> None:
+    cache_options: dict[str, bool] = {}
+
+    def configure_cache(*, enable_disk_cache: bool, enable_memory_cache: bool) -> None:
+        cache_options.update(
+            enable_disk_cache=enable_disk_cache,
+            enable_memory_cache=enable_memory_cache,
+        )
+
+    fake_dspy = SimpleNamespace(
+        Signature=type("Signature", (), {}),
+        InputField=lambda **_kwargs: None,
+        OutputField=lambda **_kwargs: None,
+        LM=lambda *_args, **_kwargs: object(),
+        Predict=lambda *_args, **_kwargs: object(),
+        configure_cache=configure_cache,
+    )
+    monkeypatch.setitem(sys.modules, "dspy", fake_dspy)
+
+    GEPAMutator()
+
+    assert cache_options == {
+        "enable_disk_cache": False,
+        "enable_memory_cache": True,
+    }
+
+
 # ── regression candidate always rejected ─────────────────────────────────────
 
 
@@ -134,6 +165,47 @@ def test_no_improvement_returns_empty() -> None:
         run_id="test-no-improvement",
     )
     assert result.proposed_changes == ()
+
+
+def test_multiple_comparison_correction_rejects_marginal_p_value() -> None:
+    cluster_trace = generate_trace("wrong_tool", seed=200)
+    cluster = _make_cluster([cluster_trace.id])
+    _, holdout = split(generate_dataset(n=100, seed=201), seed=201)
+
+    class _OneCandidateMutator:
+        def mutate(self, prompt: str, failure_examples: list[str], budget: int) -> list[str]:
+            return ["marginal-candidate"]
+
+    class _MarginalHarness:
+        def evaluate(
+            self,
+            baseline: AgentConfig,
+            candidate: AgentConfig,
+            holdout: object,
+        ) -> SimpleNamespace:
+            significance = SimpleNamespace(
+                delta=0.2,
+                p_value=0.04,
+                passed=True,
+                sample_size=40,
+            )
+            return SimpleNamespace(passed=True, significance=significance)
+
+    optimizer = Optimizer(
+        mutator=_OneCandidateMutator(),
+        harness=_MarginalHarness(),  # type: ignore[arg-type]
+        budget=4,
+    )
+    result = optimizer.optimize(
+        clusters=[cluster],
+        traces=[cluster_trace],
+        baseline=AgentConfig(prompt="baseline", skills=()),
+        holdout=holdout,
+        run_id="test-corrected-alpha",
+    )
+
+    assert result.proposed_changes == ()
+    assert result.eval_results == ()
 
 
 # ── known-good improvement accepted ──────────────────────────────────────────
@@ -334,6 +406,7 @@ def test_proposed_change_rationale_contains_cluster_info() -> None:
     assert "Eval result" in rationale
     assert "Baseline score" in rationale
     assert "p-value" in rationale
+    assert "Corrected gate" in rationale
 
 
 def test_proposed_change_has_correct_fields() -> None:

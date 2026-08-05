@@ -7,5 +7,5 @@ export async function GET() {
   if (!session) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  return NextResponse.json(listRuns(session.organizationId));
+  return NextResponse.json(await listRuns(session.organizationId));
 }

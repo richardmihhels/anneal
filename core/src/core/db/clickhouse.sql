@@ -1,4 +1,6 @@
-CREATE TABLE IF NOT EXISTS spans (
+CREATE DATABASE IF NOT EXISTS {database};
+
+CREATE TABLE IF NOT EXISTS {database}.spans (
     trace_id     String,
     span_id      String,
     organization_id String DEFAULT 'org_demo',
@@ -15,4 +17,4 @@ CREATE TABLE IF NOT EXISTS spans (
     ingested_at  DateTime64(3, 'UTC') DEFAULT now64()
 ) ENGINE = MergeTree()
 ORDER BY (organization_id, agent_id, trace_id, start_time)
-TTL ingested_at + INTERVAL 1 YEAR;
+TTL toDateTime(ingested_at) + INTERVAL 1 YEAR;

@@ -10,12 +10,12 @@ describe("HowItWorks", () => {
     expect(headings.map((heading) => heading.textContent)).toEqual([
       "Connect",
       "Watch",
-      "Alarm",
+      "Detect",
       "Improve",
     ]);
-    expect(screen.getByText(/traces stream in immediately/i)).toBeInTheDocument();
-    expect(screen.getByText(/health view shows eval score/i)).toBeInTheDocument();
-    expect(screen.getByText(/sends a precise alarm within hours/i)).toBeInTheDocument();
-    expect(screen.getByText(/digest still tells you what was seen/i)).toBeInTheDocument();
+    expect(screen.getByText(/background queue/i)).toBeInTheDocument();
+    expect(screen.getByText(/health view shows recorded eval scores/i)).toBeInTheDocument();
+    expect(screen.getByText(/one-sided proportions test/i)).toBeInTheDocument();
+    expect(screen.getByText(/digest records the safe outcome/i)).toBeInTheDocument();
   });
 });

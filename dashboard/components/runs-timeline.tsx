@@ -113,7 +113,8 @@ export function RunsTimeline({ runs }: Props) {
                         Candidates
                       </p>
                       <span className="text-xs text-zinc-700">
-                        {run.gate.survivors} shipped / {run.gate.rejected} held
+                        {run.gate.prs_opened} published / {run.gate.survivors} passed /{" "}
+                        {run.gate.rejected} rejected
                       </span>
                     </div>
                     {run.proposed_changes.length > 0 ? (
@@ -121,7 +122,12 @@ export function RunsTimeline({ runs }: Props) {
                         {run.proposed_changes.map((change) => (
                           <div
                             key={change.id}
-                            className="rounded border border-emerald-500/20 bg-emerald-500/5 px-3 py-2"
+                            className={[
+                              "rounded border px-3 py-2",
+                              change.published
+                                ? "border-emerald-500/20 bg-emerald-500/5"
+                                : "border-zinc-800 bg-zinc-950/30",
+                            ].join(" ")}
                           >
                             <div className="flex items-center justify-between gap-3">
                               <span className="font-mono text-[11px] text-zinc-500">
@@ -132,7 +138,9 @@ export function RunsTimeline({ runs }: Props) {
                               )}
                             </div>
                             <p className="mt-1 text-xs text-zinc-500">
-                              Shipped because the holdout eval beat baseline.
+                              {change.published
+                                ? "Published because it was the strongest holdout-gated improvement."
+                                : "Passed the gate; held because another survivor was stronger."}
                             </p>
                           </div>
                         ))}

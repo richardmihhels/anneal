@@ -5,13 +5,25 @@ members = ["core", "worker", "shared", "sdk"]
 dev = [
     "pytest>=8",
     "httpx>=0.27",
+    "httpx2>=2.9.1",
+    "langchain-core>=1.4,<2",
     "mypy>=1.11",
     "ruff>=0.6",
     "pydantic>=2.7",
+    "types-pyyaml>=6.0",
 ]
 
 [tool.uv]
 default-groups = ["dev"]
+constraint-dependencies = [
+    # Security floors for transitive runtime dependencies. Keep these aligned
+    # with the Python dependency audit in .github/workflows/ci.yml.
+    "aiohttp>=3.14.3",
+    "cryptography>=50.0.0",
+    "json-repair>=0.60.1",
+    "langsmith>=0.8.18",
+    "starlette>=1.3.1",
+]
 
 [tool.mypy]
 strict = true
