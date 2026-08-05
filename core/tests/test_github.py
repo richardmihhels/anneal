@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 from core.github import (
     FakeGitHubGateway,
     PRPublisher,
@@ -320,6 +321,27 @@ def test_hard_gate_rejects_zero_delta() -> None:
     assert gw.opened_prs == []
 
 
+def test_hard_gate_rechecks_inconsistent_passed_flag() -> None:
+    change = _make_change()
+    ev = _make_eval(change_id=change.id, passed=True, delta=0.1, p_value=0.5)
+    result = OptimizationResult(proposed_changes=(change,), eval_results=(ev,))
+    gw = FakeGitHubGateway()
+    gw.add_file("acme/agent", "agent/config.py", change.before)
+
+    published = _make_publisher(gw).publish(result)
+
+    assert published.opened == ()
+    assert published.skipped_failed_gate == 1
+
+
+def test_publisher_rejects_unpaired_changes() -> None:
+    change = _make_change()
+    result = OptimizationResult(proposed_changes=(change,), eval_results=())
+
+    with pytest.raises(ValueError, match="exactly one eval"):
+        _make_publisher(FakeGitHubGateway()).publish(result)
+
+
 # ── publisher: idempotency ────────────────────────────────────────────────────
 
 
@@ -434,8 +456,8 @@ def test_silence_path_not_emitted_when_pr_already_exists() -> None:
 # ── publisher: patch not found ────────────────────────────────────────────────
 
 
-def test_patch_not_found_skips_gracefully() -> None:
-    """If before text is not in config file, skip without opening a PR."""
+def test_patch_not_found_fails_closed() -> None:
+    """A stale target fails the run path without opening a PR."""
     change = _make_change(before="this text is not in the file")
     ev = _make_eval(change_id=change.id)
     result = _make_result(change, ev)
@@ -443,32 +465,56 @@ def test_patch_not_found_skips_gracefully() -> None:
     gw = FakeGitHubGateway()
     gw.add_file("acme/agent", "agent/config.py", "completely different content")
     pub = _make_publisher(gw)
-    pub_result = pub.publish(result)
+    with pytest.raises(ValueError, match="not found verbatim"):
+        pub.publish(result)
 
-    assert pub_result.opened == ()
     assert gw.opened_prs == []
-    # Silence report is emitted because nothing was opened and no existing PRs
-    assert pub_result.silence_report is not None
 
 
-def test_config_file_not_found_skips_gracefully() -> None:
-    """Missing config file should skip the change, not raise."""
+def test_config_file_not_found_fails_closed() -> None:
+    """A missing configured target is an operational failure, not a silent week."""
     change = _make_change()
     ev = _make_eval(change_id=change.id)
     result = _make_result(change, ev)
 
     gw = FakeGitHubGateway()  # no file added
     pub = _make_publisher(gw)
-    pub_result = pub.publish(result)
+    with pytest.raises(FileNotFoundError):
+        pub.publish(result)
 
-    assert pub_result.opened == ()
+    assert gw.opened_prs == []
+
+
+def test_github_write_failure_propagates_without_pr() -> None:
+    change = _make_change()
+    ev = _make_eval(change_id=change.id)
+    result = _make_result(change, ev)
+
+    class _WriteFailureGateway(FakeGitHubGateway):
+        def update_file(
+            self,
+            repo: str,
+            path: str,
+            content: str,
+            sha: str,
+            branch: str,
+            message: str,
+        ) -> None:
+            raise RuntimeError("GitHub write unavailable")
+
+    gw = _WriteFailureGateway()
+    gw.add_file("acme/agent", "agent/config.py", change.before)
+
+    with pytest.raises(RuntimeError, match="GitHub write unavailable"):
+        _make_publisher(gw).publish(result)
+
     assert gw.opened_prs == []
 
 
 # ── publisher: multiple changes ───────────────────────────────────────────────
 
 
-def test_multiple_changes_all_open() -> None:
+def test_multiple_changes_publish_only_strongest() -> None:
     before_a = "prompt for cluster A"
     before_b = "prompt for cluster B"
 
@@ -477,8 +523,8 @@ def test_multiple_changes_all_open() -> None:
 
     change_a = _make_change(before=before_a, after="improved A", rationale=rationale_a)
     change_b = _make_change(before=before_b, after="improved B", rationale=rationale_b)
-    ev_a = _make_eval(change_id=change_a.id)
-    ev_b = _make_eval(change_id=change_b.id)
+    ev_a = _make_eval(change_id=change_a.id, delta=0.20)
+    ev_b = _make_eval(change_id=change_b.id, delta=0.60)
 
     # Both prompts are in the same config file
     gw = FakeGitHubGateway()
@@ -491,5 +537,6 @@ def test_multiple_changes_all_open() -> None:
     )
     pub_result = pub.publish(result)
 
-    assert len(pub_result.opened) == 2
-    assert len(gw.opened_prs) == 2
+    assert len(pub_result.opened) == 1
+    assert pub_result.opened[0].change_id == change_b.id
+    assert len(gw.opened_prs) == 1

@@ -39,9 +39,9 @@ interface PageProps {
 export default async function RunDetailPage({ params }: PageProps) {
   const session = await requireSession();
   const { id } = await params;
-  const run = getRun(id, session.organizationId);
+  const run = await getRun(id, session.organizationId);
   if (!run) notFound();
-  const digest = getWeeklyDigestForRun(id, session.organizationId);
+  const digest = await getWeeklyDigestForRun(id, session.organizationId);
 
   const isFailed = run.status === "failed";
   const isSkipped =
@@ -53,7 +53,11 @@ export default async function RunDetailPage({ params }: PageProps) {
     !isSkipped &&
     run.clusters.length === 0;
   const hasClusters = run.clusters.length > 0;
-  const hasChanges = run.proposed_changes.length > 0;
+  const publishedChanges = run.proposed_changes.filter((change) => change.published);
+  const unpublishedSurvivors = run.proposed_changes.filter(
+    (change) => !change.published,
+  );
+  const hasSurvivors = run.proposed_changes.length > 0;
   const rejectedCount = run.gate.rejected;
   const candidateCount = run.gate.survivors + run.gate.rejected;
   const acceptedEvals = run.proposed_changes
@@ -174,13 +178,13 @@ export default async function RunDetailPage({ params }: PageProps) {
       )}
 
       {/* Proposed changes (shipped) */}
-      {hasChanges && (
+      {publishedChanges.length > 0 && (
         <section className="mb-8">
           <p className="mb-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
-            Candidates shipped ({run.proposed_changes.length})
+            Candidate published ({publishedChanges.length})
           </p>
           <div className="space-y-3">
-            {run.proposed_changes.map((change) => {
+            {publishedChanges.map((change) => {
               const ev = change.eval_result;
               const excerpt = extractExcerpt(change.rationale);
               return (
@@ -236,8 +240,23 @@ export default async function RunDetailPage({ params }: PageProps) {
         </section>
       )}
 
+      {unpublishedSurvivors.length > 0 && (
+        <section className="mb-8">
+          <p className="mb-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
+            Other gate survivors ({unpublishedSurvivors.length})
+          </p>
+          <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 px-4 py-3">
+            <p className="text-xs leading-relaxed text-zinc-500">
+              These candidates beat their baselines, but Anneal opens at most one
+              new PR per cycle: the survivor with the strongest holdout delta. An
+              existing idempotent PR may also cover the selected change.
+            </p>
+          </div>
+        </section>
+      )}
+
       {/* Silent state when clusters were found but nothing shipped */}
-      {hasClusters && !hasChanges && !isFailed && (
+      {hasClusters && !hasSurvivors && !isFailed && (
         <EmptyState
           kind="no-survivors"
           clusterCount={run.clusters.length}
@@ -247,7 +266,7 @@ export default async function RunDetailPage({ params }: PageProps) {
       )}
 
       {/* Rejection summary if some clusters had no survivor */}
-      {hasChanges && rejectedCount > 0 && (
+      {hasSurvivors && rejectedCount > 0 && (
         <section className="mb-8">
           <p className="mb-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
             Candidates rejected ({rejectedCount})

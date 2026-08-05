@@ -12,6 +12,7 @@ const session: AuthSession = {
   email: "lead@prompt7.example",
   organizationId: "org_demo",
   organizationName: "Prompt 7 Demo",
+  expiresAt: Date.now() + 60_000,
 };
 
 describe("Nav", () => {

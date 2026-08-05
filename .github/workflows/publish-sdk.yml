@@ -1,0 +1,51 @@
+name: Publish SDK
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.12"
+      - name: Verify release tag matches SDK version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: >-
+          python -c 'import os, pathlib, tomllib;
+          version = tomllib.loads(pathlib.Path("sdk/pyproject.toml").read_text())["project"]["version"];
+          tag = os.environ["RELEASE_TAG"].removeprefix("v");
+          assert tag == version, f"release tag {tag!r} does not match SDK version {version!r}"'
+      - name: Install locked dependencies
+        run: uv sync --frozen
+      - name: Test SDK
+        run: uv run pytest sdk/tests
+      - name: Build distributions
+        run: uv build --package anneal-sdk --out-dir dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdk-distributions
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/anneal-sdk
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: sdk-distributions
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

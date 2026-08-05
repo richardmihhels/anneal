@@ -1,0 +1,41 @@
+name: Feature or safety proposal
+description: Suggest an improvement to Anneal's product, safety model, or developer experience
+title: "feat: "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe the user problem or safety gap, not only the desired implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Explain the smallest useful behavior you would add or change.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: dropdown
+    id: safety
+    attributes:
+      label: Safety impact
+      description: Could this affect holdout isolation, judge calibration, tenant scoping, or PR publication gates?
+      options:
+        - No known safety impact
+        - Strengthens a safety invariant
+        - Changes a safety invariant
+        - Unsure
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation plan
+      description: Describe the tests or evidence that should prove the change works safely.
+    validations:
+      required: true

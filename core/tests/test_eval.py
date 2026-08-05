@@ -127,6 +127,14 @@ def test_paired_t_test_too_few_samples() -> None:
     assert result.p_value == pytest.approx(1.0)
 
 
+def test_paired_t_test_rejects_small_perfect_sample() -> None:
+    result = paired_t_test([0.0] * 9, [1.0] * 9)
+    assert result.delta == pytest.approx(1.0)
+    assert result.sample_size == 9
+    assert result.passed is False
+    assert result.p_value == pytest.approx(1.0)
+
+
 def test_paired_t_test_length_mismatch_raises() -> None:
     with pytest.raises(ValueError, match="same length"):
         paired_t_test([1.0, 0.5], [1.0])

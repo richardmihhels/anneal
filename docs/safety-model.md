@@ -11,6 +11,10 @@ candidate from merely memorizing the traces that inspired it.
 
 The worker records the holdout size in run events. The dashboard surfaces it in
 run detail so reviewers can see whether a shipped PR had enough evidence.
+Candidates cannot pass with fewer than 10 paired holdout cases. Because one
+cycle may test several mutations and clusters against the same holdout, Anneal
+uses a Bonferroni-adjusted threshold that keeps the cycle-wide false-positive
+rate below `0.05`.
 
 ## Judge Calibration
 
@@ -31,7 +35,12 @@ Anneal refuses to open a PR when:
 - A candidate improves training cases but fails the holdout.
 - The candidate delta is not statistically significant.
 - The judge calibration is not trustworthy.
-- Publishing crashes or a duplicate PR is already open.
+- A duplicate PR is already open.
+
+Target-file drift, a missing target, or a GitHub API failure also opens no PR,
+but those are recorded as failed runs rather than successful silent weeks. This
+keeps operational breakage distinct from the intended "evidence was too weak"
+outcome.
 
 The silent state is a product feature. A week with no PR should mean "nothing
 cleared the bar," not "the system broke." The dashboard renders this explicitly

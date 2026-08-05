@@ -5,8 +5,11 @@ Trace streaming SDK for Anneal.
 ## Install
 
 ```bash
-pip install anneal-sdk[langchain]
+pip install "anneal-sdk[langchain] @ git+https://github.com/richardmihhels/anneal.git@main#subdirectory=sdk"
 ```
+
+`pip install anneal-sdk[langchain]` becomes available after the first tagged
+release is published to PyPI.
 
 For local development from this repo:
 
@@ -41,6 +44,23 @@ result = graph.invoke(
 anneal.flush()
 ```
 
-The SDK sends LangSmith-shaped runs to `/ingest/langsmith`, scrubs likely
-secrets, and adds `X-Anneal-Org` plus `extra.metadata.organization_id` so the
-dashboard only reads traces for the signed organization.
+The SDK sends LangSmith-shaped runs to `/ingest/langsmith`, converts LangChain
+messages and other common Python values to JSON, scrubs likely secrets, and
+adds `Authorization`, `X-Anneal-Org`, and `extra.metadata.organization_id`.
+The server derives tenancy from the authenticated header; trace metadata cannot
+override it.
+
+Delivery is asynchronous and best-effort: an unavailable Anneal server never
+interrupts the host agent, while delivery failures are emitted through Python's
+standard logging system. The `langchain` extra is tested with LangChain Core
+1.4.x.
+
+Use the client as a context manager in long-running code when practical:
+
+```python
+with AnnealClient.from_env() as anneal:
+    graph.invoke(
+        {"messages": messages},
+        config={"callbacks": [anneal.callback_handler("support-agent-v1")]},
+    )
+```

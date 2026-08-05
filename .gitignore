@@ -16,9 +16,17 @@ out/
 test-results/
 playwright-report/
 
+# Terraform local state and provider cache
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+
 # Env
 .env
 .env.local
+anneal.yml
 
 # OS
 .DS_Store

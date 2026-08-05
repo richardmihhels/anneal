@@ -9,6 +9,7 @@ from typing import Any
 from core.github.client import GitHubGateway
 from shared.models import Trace
 
+from worker.digest import DigestNotifier
 from worker.models import CustomerConfig, PipelineComponents
 from worker.pipeline import run_optimization_cycle
 from worker.store import RunStore
@@ -21,7 +22,8 @@ def setup_scheduler(
     store: RunStore,
     gateway: GitHubGateway,
     components: PipelineComponents,
-    get_traces: Callable[[str], Coroutine[Any, Any, list[Trace]]],
+    get_traces: Callable[[str, str], Coroutine[Any, Any, list[Trace]]],
+    digest_notifier: DigestNotifier | None = None,
 ) -> Any:
     """Return a configured APScheduler AsyncIOScheduler, not yet started.
 
@@ -33,8 +35,8 @@ def setup_scheduler(
         store:       Persistence backend for runs and events.
         gateway:     GitHub API client (real or fake).
         components:  ML/LLM components (fake for tests, real for production).
-        get_traces:  Async callable(agent_id) → list[Trace]. In production this
-                     queries ClickHouse; in tests it returns synthetic data.
+        get_traces:  Async callable(organization_id, agent_id) → list[Trace].
+                     In production this queries persisted traces.
     """
     from apscheduler.schedulers.asyncio import AsyncIOScheduler  # type: ignore[import-untyped]
     from apscheduler.triggers.cron import CronTrigger  # type: ignore[import-untyped]
@@ -44,8 +46,15 @@ def setup_scheduler(
     async def _job() -> None:
         logger.info("Weekly optimization job started for %d customer(s)", len(customers))
         for customer in customers:
-            traces = await get_traces(customer.agent_id)
-            await run_optimization_cycle(customer, traces, store, gateway, components)
+            traces = await get_traces(customer.organization_id, customer.agent_id)
+            await run_optimization_cycle(
+                customer,
+                traces,
+                store,
+                gateway,
+                components,
+                digest_notifier=digest_notifier,
+            )
 
     scheduler.add_job(
         _job,
@@ -63,13 +72,21 @@ async def trigger_now(
     store: RunStore,
     gateway: GitHubGateway,
     components: PipelineComponents,
-    get_traces: Callable[[str], Coroutine[Any, Any, list[Trace]]],
+    get_traces: Callable[[str, str], Coroutine[Any, Any, list[Trace]]],
+    digest_notifier: DigestNotifier | None = None,
 ) -> None:
     """Run the optimization cycle immediately for all customers (manual trigger)."""
     logger.info("Manual trigger: running optimization for %d customer(s)", len(customers))
     for customer in customers:
-        traces = await get_traces(customer.agent_id)
-        run = await run_optimization_cycle(customer, traces, store, gateway, components)
+        traces = await get_traces(customer.organization_id, customer.agent_id)
+        run = await run_optimization_cycle(
+            customer,
+            traces,
+            store,
+            gateway,
+            components,
+            digest_notifier=digest_notifier,
+        )
         logger.info(
             "customer=%s run=%s status=%s",
             customer.agent_id,

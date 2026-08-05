@@ -12,6 +12,13 @@ export interface AuthSession {
   email: string;
   organizationId: string;
   organizationName: string;
+  expiresAt: number;
+}
+
+const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+
+function expiresAt(): number {
+  return Date.now() + SESSION_TTL_MS;
 }
 
 export function createDemoSession(): AuthSession {
@@ -20,6 +27,35 @@ export function createDemoSession(): AuthSession {
     email: DEMO_USER_EMAIL,
     organizationId: DEMO_ORG_ID,
     organizationName: DEMO_ORG_NAME,
+    expiresAt: expiresAt(),
+  };
+}
+
+export function demoLoginEnabled(): boolean {
+  return process.env.ANNEAL_DEMO_MODE !== "false" && process.env.ANNEAL_ENV !== "production";
+}
+
+function safeEqual(actual: string, expected: string): boolean {
+  const actualBuffer = Buffer.from(actual);
+  const expectedBuffer = Buffer.from(expected);
+  return (
+    actualBuffer.length === expectedBuffer.length &&
+    timingSafeEqual(actualBuffer, expectedBuffer)
+  );
+}
+
+export function authenticateCredentials(email: string, password: string): AuthSession | null {
+  const expectedEmail = process.env.ANNEAL_DASHBOARD_EMAIL ?? "";
+  const expectedPassword = process.env.ANNEAL_DASHBOARD_PASSWORD ?? "";
+  if (!expectedEmail || !expectedPassword) return null;
+  if (!safeEqual(email.trim().toLowerCase(), expectedEmail.trim().toLowerCase())) return null;
+  if (!safeEqual(password, expectedPassword)) return null;
+  return {
+    userId: "user_self_hosted",
+    email: expectedEmail,
+    organizationId: process.env.ANNEAL_ORG_ID ?? DEMO_ORG_ID,
+    organizationName: process.env.ANNEAL_ORG_NAME ?? "Anneal",
+    expiresAt: expiresAt(),
   };
 }
 
@@ -48,7 +84,9 @@ function decodePayload(payload: string): AuthSession | null {
       typeof parsed.userId !== "string" ||
       typeof parsed.email !== "string" ||
       typeof parsed.organizationId !== "string" ||
-      typeof parsed.organizationName !== "string"
+      typeof parsed.organizationName !== "string" ||
+      typeof parsed.expiresAt !== "number" ||
+      parsed.expiresAt <= Date.now()
     ) {
       return null;
     }
@@ -57,6 +95,7 @@ function decodePayload(payload: string): AuthSession | null {
       email: parsed.email,
       organizationId: parsed.organizationId,
       organizationName: parsed.organizationName,
+      expiresAt: parsed.expiresAt,
     };
   } catch {
     return null;
@@ -73,14 +112,7 @@ function decodeSession(raw: string | undefined): AuthSession | null {
   const [payload, signature] = raw.split(".");
   if (!payload || !signature) return null;
   const expected = sign(payload);
-  const actualBuffer = Buffer.from(signature);
-  const expectedBuffer = Buffer.from(expected);
-  if (
-    actualBuffer.length !== expectedBuffer.length ||
-    !timingSafeEqual(actualBuffer, expectedBuffer)
-  ) {
-    return null;
-  }
+  if (!safeEqual(signature, expected)) return null;
   return decodePayload(payload);
 }
 
@@ -102,7 +134,7 @@ export async function setSessionCookie(session: AuthSession): Promise<void> {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 60 * 24 * 30,
+    maxAge: SESSION_TTL_MS / 1000,
   });
 }
 

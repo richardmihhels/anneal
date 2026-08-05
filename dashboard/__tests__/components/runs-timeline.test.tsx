@@ -43,6 +43,7 @@ const run: RunDetail = {
         passed: true,
         judge_agreement_rate: 0.95,
       },
+      published: true,
     },
   ],
   silence_report: null,
@@ -63,7 +64,7 @@ describe("RunsTimeline", () => {
       screen.getByText("Agent picked the wrong billing tool"),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Shipped because the holdout eval beat baseline/),
+      screen.getByText(/Published because it was the strongest holdout-gated improvement/),
     ).toBeInTheDocument();
   });
 });

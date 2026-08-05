@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-type Status = "idle" | "success" | "error";
+type Status = "idle" | "submitting" | "success" | "error";
 
 function isValidEmail(v: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
@@ -20,14 +20,23 @@ export function EmailCapture() {
     );
   }
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!isValidEmail(email)) {
       setStatus("error");
       return;
     }
-    // Stub — no backend yet
-    setStatus("success");
+    setStatus("submitting");
+    try {
+      const response = await fetch("/api/waitlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      setStatus(response.ok ? "success" : "error");
+    } catch {
+      setStatus("error");
+    }
   }
 
   return (
@@ -69,6 +78,7 @@ export function EmailCapture() {
       </div>
       <button
         type="submit"
+        disabled={status === "submitting"}
         className={[
           "h-10 rounded-md bg-[#2450B0] px-4 text-sm font-medium text-white",
           "transition-colors hover:bg-[#1A3E9E]",
@@ -76,7 +86,7 @@ export function EmailCapture() {
           "whitespace-nowrap",
         ].join(" ")}
       >
-        Request access
+        {status === "submitting" ? "Submitting…" : "Request access"}
       </button>
     </form>
   );

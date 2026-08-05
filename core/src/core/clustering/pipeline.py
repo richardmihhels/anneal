@@ -107,7 +107,11 @@ class ClusterPipeline:
         from sklearn.cluster import HDBSCAN  # type: ignore[import-untyped]
 
         # HDBSCAN requires min_cluster_size >= 2
-        hdb = HDBSCAN(min_cluster_size=max(self._min_cluster_size, 2), metric="euclidean")
+        hdb = HDBSCAN(
+            min_cluster_size=max(self._min_cluster_size, 2),
+            metric="euclidean",
+            copy=True,
+        )
         labels: NDArray[Any] = hdb.fit_predict(X)
         return labels
 

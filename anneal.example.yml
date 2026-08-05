@@ -1,0 +1,25 @@
+# Copy this file outside the Anneal repository, fill in your agent details, and
+# set ANNEAL_CONFIG_PATH to its location in the worker environment.
+organization_id: org_acme
+agent_id: support-agent-v1
+repo: acme/support-agent
+config_path: agent/prompts.py
+base_branch: main
+
+baseline_prompt: |
+  You are Acme's customer-support agent. Resolve the user's request using the
+  available tools and escalate only when the request cannot be completed safely.
+
+baseline_skills:
+  - lookup_order
+  - issue_refund
+
+seed_set:
+  - context: "Response: the refund was completed correctly."
+    label: pass
+  - context: "Response: the account issue was resolved with the correct tool."
+    label: pass
+  - context: "Response: I invented a refund policy that does not exist."
+    label: fail
+  - context: "Response: I escalated before trying the available support tool."
+    label: fail

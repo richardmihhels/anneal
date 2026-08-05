@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { DM_Sans } from "next/font/google";
 
 export const metadata: Metadata = {
   title: "Anneal — Your agent, measurably better. Never worse.",
@@ -13,13 +12,6 @@ export const metadata: Metadata = {
   },
 };
 
-const dmSans = DM_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--font-dm-sans",
-  display: "swap",
-});
-
 export default function MarketingLayout({
   children,
 }: {
@@ -27,7 +19,7 @@ export default function MarketingLayout({
 }) {
   return (
     <div
-      className={`${dmSans.variable} min-h-screen bg-[#F8F7F4] font-[family-name:var(--font-dm-sans)] text-[#111110] antialiased`}
+      className="min-h-screen bg-[#F8F7F4] font-sans text-[#111110] antialiased"
       style={{ colorScheme: "light" }}
     >
       {/* 2px accent bar */}

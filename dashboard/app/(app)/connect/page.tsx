@@ -2,6 +2,7 @@ import { requireSession } from "@/lib/auth";
 
 export default async function ConnectPage() {
   const session = await requireSession();
+  const githubInstallUrl = process.env.ANNEAL_GITHUB_APP_INSTALL_URL;
 
   return (
     <div className="max-w-2xl">
@@ -22,7 +23,7 @@ export default async function ConnectPage() {
             Add the SDK to your agent&apos;s dependencies:
           </p>
           <pre className="rounded-lg bg-zinc-950 border border-zinc-800 px-4 py-3 font-mono text-sm text-zinc-300">
-            pip install anneal-sdk[langchain]
+            pip install &quot;anneal-sdk[langchain] @ git+https://github.com/richardmihhels/anneal.git@main#subdirectory=sdk&quot;
           </pre>
           <p className="mt-3 text-sm text-zinc-400">
             Then attach the callback handler to your LangGraph run:
@@ -59,14 +60,19 @@ anneal.flush()`}
             Anneal needs write access to your repo to open PRs with prompt
             improvements.
           </p>
-          <button
-            disabled
-            className="inline-flex items-center gap-2 rounded-md border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm text-zinc-400 cursor-not-allowed"
-          >
-            <GitHubIcon />
-            Install on GitHub
-            <span className="text-xs text-zinc-600">(coming soon)</span>
-          </button>
+          {githubInstallUrl ? (
+            <a
+              href={githubInstallUrl}
+              className="inline-flex items-center gap-2 rounded-md border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700"
+            >
+              <GitHubIcon />
+              Install on GitHub
+            </a>
+          ) : (
+            <p className="rounded-md border border-amber-900/50 bg-amber-950/20 px-3 py-2 text-xs text-amber-300">
+              Set ANNEAL_GITHUB_APP_INSTALL_URL to expose your self-hosted GitHub App installation link.
+            </p>
+          )}
           <div className="mt-3 rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2">
             <p className="text-xs text-zinc-500">
               The app requests:{" "}
@@ -99,12 +105,16 @@ base_branch: main
 seed_set:
   - context: "I've processed your refund of $79. It will arrive in 3–5 days."
     label: pass
+  - context: "I used the account tool and resolved the login issue."
+    label: pass
   - context: "I cannot help with billing. Please contact billing@company.com."
+    label: fail
+  - context: "I invented a refund policy instead of checking the policy tool."
     label: fail`}
           </pre>
           <p className="mt-3 text-xs text-zinc-500">
-            Anneal runs every Monday at 02:00 UTC. Your first run will appear
-            in{" "}
+            Anneal runs every Monday at 02:00 UTC after at least 20 traces are
+            available. Completed and safely skipped cycles appear in{" "}
             <a href="/runs" className="text-zinc-400 hover:text-zinc-200 underline underline-offset-2 transition-colors">
               Runs
             </a>{" "}
@@ -142,7 +152,7 @@ function Step({
         </div>
         <h2 className="text-sm font-medium text-zinc-200">{title}</h2>
         {status === "done" && (
-          <span className="ml-auto text-xs text-emerald-600">Installed</span>
+          <span className="ml-auto text-xs text-emerald-600">Ready</span>
         )}
       </div>
       <div className="px-4 py-4">{children}</div>

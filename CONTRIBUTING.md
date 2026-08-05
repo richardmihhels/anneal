@@ -6,8 +6,8 @@ bugs. Keep changes small, typed, and verified.
 ## Setup
 
 ```sh
-uv sync
-cd dashboard && npm install
+make setup
+make setup-browser  # required only for local Playwright tests
 ```
 
 ## Checks
@@ -16,16 +16,15 @@ Run the smallest useful check while developing, then the broader checks before a
 commit:
 
 ```sh
-uv run pytest
-cd dashboard && npm test
-cd dashboard && npm run typecheck
+make lint
+make test-all
+make build
 ```
 
 For the V1 customer path:
 
 ```sh
 uv run pytest worker/tests/test_v1_smoke.py
-cd dashboard && npm run test:e2e
 ```
 
 ## Standards
@@ -50,3 +49,10 @@ Do not weaken these without an explicit product decision:
 
 The dashboard should feel closer to Linear or Raycast than Grafana: dense,
 quiet, fast, and opinionated. Empty weeks should be reassuring and explicit.
+
+## Releasing the SDK
+
+Update `sdk/pyproject.toml` and `CHANGELOG.md` together, merge a fully green
+commit to `main`, then publish a GitHub release tagged `v<version>`. The release
+workflow rejects a tag that does not match the package version, reruns the SDK
+tests, builds both distributions, and publishes through PyPI trusted publishing.

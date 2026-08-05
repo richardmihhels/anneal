@@ -115,6 +115,7 @@ export interface HealthEvalPoint {
 
 export interface ProposedChangeWithEval extends ProposedChange {
   eval_result: EvalResult | null;
+  published: boolean;
 }
 
 export interface GateSummary {

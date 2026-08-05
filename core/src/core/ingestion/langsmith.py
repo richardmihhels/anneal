@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
 
 from shared.models import Span, Trace
 
@@ -53,8 +53,19 @@ def normalize_langsmith(payload: dict[str, Any]) -> Trace:
     """
     trace_id: str = str(payload.get("session_id") or payload["id"])
     created_at = _dt(payload["start_time"])
-    outcome = "failure" if payload.get("error") else "unknown"
     extra_meta: dict[str, Any] = (payload.get("extra") or {}).get("metadata") or {}
+    declared_outcome = extra_meta.get("outcome")
+    outcome: Literal["success", "failure", "unknown"]
+    if declared_outcome == "success":
+        outcome = "success"
+    elif declared_outcome == "failure":
+        outcome = "failure"
+    elif declared_outcome == "unknown":
+        outcome = "unknown"
+    elif payload.get("error") or extra_meta.get("failure_category"):
+        outcome = "failure"
+    else:
+        outcome = "unknown"
 
     return Trace(
         id=trace_id,

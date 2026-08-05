@@ -14,8 +14,8 @@ Opinionated defaults:
 
 from __future__ import annotations
 
-import math
 import logging
+import math
 from datetime import UTC, datetime, timedelta
 from typing import Protocol, runtime_checkable
 
@@ -53,7 +53,7 @@ class TemplateHypothesisGenerator:
         pct_change = (current_rate - baseline_rate) / max(baseline_rate, 1e-9) * 100
         sample_note = ""
         if sample_descriptions:
-            sample_note = f" A recent example: \"{sample_descriptions[0][:120]}\"."
+            sample_note = f' A recent example: "{sample_descriptions[0][:120]}".'
         return (
             f"Hypothesis (AI-generated — treat as a guess): The '{category}' failure rate "
             f"rose {pct_change:.0f}% from {baseline_rate:.1%} to {current_rate:.1%}. "
@@ -83,6 +83,7 @@ def _norm_sf(z: float) -> float:
     """Survival function (1 - CDF) of the standard normal distribution."""
     # erfc(z/sqrt(2)) / 2 — accurate to ~7 decimal places
     import math
+
     return math.erfc(z / math.sqrt(2.0)) / 2.0
 
 
@@ -117,9 +118,7 @@ class AlarmDetector:
         hypothesis_gen: HypothesisGenerator | None = None,
     ) -> None:
         self._window_hours = window_hours
-        self._hypothesis_gen: HypothesisGenerator = (
-            hypothesis_gen or TemplateHypothesisGenerator()
-        )
+        self._hypothesis_gen: HypothesisGenerator = hypothesis_gen or TemplateHypothesisGenerator()
 
     def detect(
         self,
@@ -250,7 +249,12 @@ async def run_alarm_check(
     # Load recent alarms for debounce
     recent_alarms: list[Alarm] = []
     for cat in {t.metadata.get("failure_category") for t in traces if t.metadata.get("failure_category")}:
-        recent = await alarm_store.get_recent_alarm(agent_id, str(cat), _DEBOUNCE_HOURS)
+        recent = await alarm_store.get_recent_alarm(
+            organization_id,
+            agent_id,
+            str(cat),
+            _DEBOUNCE_HOURS,
+        )
         if recent is not None:
             recent_alarms.append(recent)
 

@@ -1,54 +1,64 @@
-# Getting Started
+# Getting started
 
-This guide gets a LangGraph support-agent team from a fresh checkout to traces
-in the dashboard.
+Anneal has two explicit modes:
 
-## 1. Start Anneal Locally
+- **Demo mode** is a zero-service product tour backed by synthetic records.
+- **Production mode** persists real traces and refuses to start with incomplete infrastructure or credentials.
+
+## 1. Run the product demo
+
+Install Python and dashboard dependencies from the repository root:
 
 ```sh
-uv sync
-cd dashboard && npm install
+make setup
+make demo
+```
+
+Open <http://localhost:3000/login> and choose **Continue to Prompt 7 Demo**.
+No production data is used or accepted by this dashboard process.
+
+## 2. Start the local services
+
+Install Docker, then run:
+
+```sh
 make dev
 ```
 
-Open `http://localhost:3000/login` and continue to the Prompt 7 demo org. The
-dashboard is backed by Prompt 7 synthetic run records until your own traces are
-ingested.
+This starts Postgres and ClickHouse with health checks, then runs the core API
+and an API-backed dashboard. Local defaults are:
 
-## 2. Install The SDK
-
-In the agent repo:
-
-```sh
-pip install anneal-sdk[langchain]
+```text
+ANNEAL_ENDPOINT=http://localhost:8000
+ANNEAL_ORG_ID=org_demo
+ANNEAL_API_KEY=dev_optional
 ```
 
-From this monorepo:
+Stop the API with `Ctrl-C`; stop the database containers with `make stop`.
+If another project already uses a database port, set `POSTGRES_PORT`,
+`CLICKHOUSE_HTTP_PORT`, or `CLICKHOUSE_NATIVE_PORT` before `make dev`.
+
+## 3. Install the SDK
+
+Before the first PyPI release:
 
 ```sh
-pip install -e ./sdk[langchain]
+pip install "anneal-sdk[langchain] @ git+https://github.com/richardmihhels/anneal.git@main#subdirectory=sdk"
 ```
 
-## 3. Configure Environment
-
-Use the org id from the dashboard Connect page:
+Inside this monorepo:
 
 ```sh
-export ANNEAL_ENDPOINT=http://localhost:8000
-export ANNEAL_ORG_ID=org_demo
-export ANNEAL_API_KEY=dev_optional
+pip install -e "./sdk[langchain]"
 ```
 
-`ANNEAL_API_KEY` is optional in local development. Production should require it
-at the API edge before traces are accepted.
-
-## 4. Attach To LangGraph
+## 4. Attach the callback
 
 ```python
 from anneal_sdk import AnnealClient
 
 anneal = AnnealClient.from_env()
-handler = anneal.callback_handler(agent_id="cascade-support-v1")
+handler = anneal.callback_handler(agent_id="support-agent-v1")
 
 result = graph.invoke(
     {"messages": messages},
@@ -58,42 +68,79 @@ result = graph.invoke(
 anneal.flush()
 ```
 
-`flush()` is useful in scripts, tests, and jobs where the Python process exits
-immediately after the graph call.
+`flush()` is useful in scripts, tests, and jobs that exit immediately after the
+graph call. Long-running applications should call `close()` during shutdown or
+use `AnnealClient` as a context manager.
 
-## 5. Configure PR Publishing
+## 5. Configure authentication
 
-Add an `anneal.yml` beside the agent config:
-
-```yaml
-organization_id: org_demo
-agent_id: cascade-support-v1
-repo: acme/support-agent
-config_path: agent/prompts.py
-base_branch: main
-
-seed_set:
-  - context: "I've processed your refund of $79. It will arrive in 3-5 days."
-    label: pass
-  - context: "I cannot help with billing. Please contact billing@company.com."
-    label: fail
-```
-
-The GitHub App flow is stubbed in the dashboard. The worker path is already
-exercised with `FakeGitHubGateway`; production uses `GitHubAppClient` with
-`GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY`.
-
-## 6. Run The Smoke Test
+One self-hosted organization can use:
 
 ```sh
-uv run pytest worker/tests/test_v1_smoke.py
+export ANNEAL_ENV=production
+export ANNEAL_ORG_ID=org_acme
+export ANNEAL_API_KEY="$(openssl rand -hex 32)"
 ```
 
-Expected path:
+Multiple organizations use a JSON key map:
 
-1. Fresh org id is created in the test.
-2. SDK emits a LangSmith-shaped run.
-3. FastAPI ingests the trace with `X-Anneal-Org`.
-4. Worker clusters failures and evaluates a mutation.
-5. Fake GitHub gateway opens a PR.
-6. Stored run is scoped to the same org id for the dashboard.
+```sh
+export ANNEAL_API_KEYS_JSON='{"org_acme":"key-one","org_beta":"key-two"}'
+```
+
+Production startup fails if API authentication, Postgres, or ClickHouse is not
+configured. The organization in trace metadata never overrides the authenticated
+organization.
+
+## 6. Configure weekly optimization
+
+Copy the validated example:
+
+```sh
+cp anneal.example.yml /secure/path/anneal.yml
+export ANNEAL_CONFIG_PATH=/secure/path/anneal.yml
+```
+
+Each customer supplies a baseline prompt, repository target, and at least four
+human-labeled judge calibration examples containing both `pass` and `fail`.
+Unknown configuration fields are rejected.
+
+The worker also requires:
+
+- `POSTGRES_URL`
+- `OPENAI_API_KEY`
+- `ANTHROPIC_API_KEY`
+- `GITHUB_APP_ID`
+- `GITHUB_APP_PRIVATE_KEY`
+- `ANNEAL_AGENT_RUNNER_URL`
+
+The agent runner receives a scrubbed trace and an `AgentConfig`, replays the
+case in a non-production environment, and returns a response string. This is
+the only customer-specific runtime adapter Anneal requires.
+
+Run once:
+
+```sh
+ANNEAL_MODE=production ANNEAL_TRIGGER_NOW=true uv run python -m worker.main
+```
+
+Run continuously to use the built-in Monday 02:00 UTC scheduler:
+
+```sh
+ANNEAL_MODE=production uv run python -m worker.main
+```
+
+Azure uses a Container Apps scheduled job instead of the in-process scheduler.
+
+## 7. Verify the owned path
+
+```sh
+make lint
+make test
+cd dashboard && npm test -- --runInBand
+cd dashboard && npm run test:e2e
+```
+
+The offline smoke test intentionally uses a fake GitHub gateway and deterministic
+eval components. It verifies Anneal's owned safety and tenancy behavior without
+creating external branches or pull requests.

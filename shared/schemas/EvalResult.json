@@ -4,9 +4,29 @@
       "title": "Id",
       "type": "string"
     },
+    "optimization_run_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Optimization Run Id"
+    },
     "proposed_change_id": {
-      "title": "Proposed Change Id",
-      "type": "string"
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Proposed Change Id"
     },
     "run_at": {
       "format": "date-time",
@@ -43,7 +63,6 @@
     }
   },
   "required": [
-    "proposed_change_id",
     "baseline_score",
     "candidate_score",
     "delta",

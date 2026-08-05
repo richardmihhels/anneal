@@ -13,7 +13,7 @@ test("marketing homepage renders", async ({ page }) => {
   await expect(page.getByText(/\+6\.2%/)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Connect" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Watch" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Alarm" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Detect" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Improve" })).toBeVisible();
 });
 

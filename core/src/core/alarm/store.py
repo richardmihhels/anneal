@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol, runtime_checkable
 
@@ -13,7 +12,11 @@ from shared.models import Alarm
 class AlarmStore(Protocol):
     async def save_alarm(self, alarm: Alarm) -> None: ...
     async def get_recent_alarm(
-        self, agent_id: str, category: str, within_hours: int
+        self,
+        organization_id: str,
+        agent_id: str,
+        category: str,
+        within_hours: int,
     ) -> Alarm | None: ...
 
 
@@ -27,12 +30,17 @@ class FakeAlarmStore:
         self._alarms.append(alarm)
 
     async def get_recent_alarm(
-        self, agent_id: str, category: str, within_hours: int
+        self,
+        organization_id: str,
+        agent_id: str,
+        category: str,
+        within_hours: int,
     ) -> Alarm | None:
         cutoff = datetime.now(UTC) - timedelta(hours=within_hours)
         for alarm in reversed(self._alarms):
             if (
-                alarm.agent_id == agent_id
+                alarm.organization_id == organization_id
+                and alarm.agent_id == agent_id
                 and alarm.category == category
                 and alarm.first_detected >= cutoff
             ):
@@ -85,7 +93,11 @@ class PostgresAlarmStore:
             )
 
     async def get_recent_alarm(
-        self, agent_id: str, category: str, within_hours: int
+        self,
+        organization_id: str,
+        agent_id: str,
+        category: str,
+        within_hours: int,
     ) -> Alarm | None:
         cutoff = datetime.now(UTC) - timedelta(hours=within_hours)
         pool = await self._get_pool()
@@ -93,12 +105,14 @@ class PostgresAlarmStore:
             row = await conn.fetchrow(
                 """
                 SELECT * FROM alarms
-                WHERE agent_id = $1
-                  AND category = $2
-                  AND first_detected >= $3
+                WHERE organization_id = $1
+                  AND agent_id = $2
+                  AND category = $3
+                  AND first_detected >= $4
                 ORDER BY first_detected DESC
                 LIMIT 1
                 """,
+                organization_id,
                 agent_id,
                 category,
                 cutoff,
@@ -118,3 +132,8 @@ class PostgresAlarmStore:
             cause_hypothesis=row["cause_hypothesis"],
             notified=row["notified"],
         )
+
+    async def close(self) -> None:
+        if self._pool is not None:
+            await self._pool.close()
+            self._pool = None

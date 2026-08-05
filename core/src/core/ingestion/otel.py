@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
 
 from shared.models import Span, Trace
 
@@ -36,6 +36,17 @@ def normalize_otel(payload: dict[str, Any]) -> list[Trace]:
         res_attrs = _attrs(rs.get("resource", {}).get("attributes", []))
         agent_id: str = str(res_attrs.get("agent.id", "unknown"))
         session_id: str = str(res_attrs.get("session.id", "unknown"))
+        declared_outcome = res_attrs.get("anneal.outcome", "unknown")
+        outcome: Literal["success", "failure", "unknown"] = "unknown"
+        if declared_outcome == "success":
+            outcome = "success"
+        elif declared_outcome == "failure":
+            outcome = "failure"
+
+        trace_metadata: dict[str, Any] = {}
+        if res_attrs.get("anneal.failure_category"):
+            trace_metadata["failure_category"] = res_attrs["anneal.failure_category"]
+            outcome = "failure"
 
         for ss in rs.get("scopeSpans", []):
             for sd in ss.get("spans", []):
@@ -72,7 +83,12 @@ def normalize_otel(payload: dict[str, Any]) -> list[Trace]:
                         session_id=session_id,
                         created_at=start,
                         spans=[],
+                        outcome=outcome,
+                        metadata=trace_metadata,
                     )
                 traces[trace_id].spans.append(span)
+
+                if error and traces[trace_id].outcome == "unknown":
+                    traces[trace_id].outcome = "failure"
 
     return list(traces.values())

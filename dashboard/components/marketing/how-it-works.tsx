@@ -2,29 +2,28 @@ const steps = [
   {
     n: "01",
     title: "Connect",
-    body: "The Anneal SDK wraps your LangGraph agent in roughly ten lines. Traces stream in immediately, with no schema changes and no new infrastructure.",
-    code: `from anneal import trace
+    body: "Attach the Anneal callback to an existing LangGraph invocation. The client scrubs likely secrets and sends LangSmith-shaped runs in a background queue.",
+    code: `from anneal_sdk import AnnealClient
 
-@trace(agent_id="support-v2")
-async def run_agent(input: str) -> str:
-    ...`,
+anneal = AnnealClient.from_env()
+handler = anneal.callback_handler("support-v2")`,
   },
   {
     n: "02",
     title: "Watch",
-    body: "The Health view shows eval score, failure categories, and open alarms every day. Quiet weeks still show whether the agent is holding steady.",
+    body: "The Health view shows recorded eval scores, failure categories, and open alarms. Quiet weeks still show whether the agent held steady.",
     code: null,
   },
   {
     n: "03",
-    title: "Alarm",
-    body: "If a failure category spikes above its recent baseline, Anneal sends a precise alarm within hours: what moved, how many conversations, and a cause hypothesis labeled as a guess.",
+    title: "Detect",
+    body: "The regression detector compares rolling windows with a one-sided proportions test, debounces repeats, and labels its cause hypothesis as a guess.",
     code: null,
   },
   {
     n: "04",
     title: "Improve",
-    body: "Once a week, Anneal clusters failures, runs GEPA/DSPy optimization against a held-out eval set, and opens one gated PR if it beats baseline. If nothing clears the holdout, no PR ships and the digest still tells you what was seen.",
+    body: "Once a week, Anneal clusters only the training split, evaluates candidates on a reserved holdout, and opens the strongest gated PR. If nothing clears the holdout, no PR ships and the digest records the safe outcome.",
     code: null,
   },
 ] as const;

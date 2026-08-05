@@ -1,8 +1,6 @@
 name: Deploy
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       environment:
@@ -27,6 +25,7 @@ jobs:
   build:
     name: Build images
     runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
     outputs:
       tag: ${{ steps.tag.outputs.tag }}
     steps:
@@ -52,9 +51,7 @@ jobs:
           context: .
           file: core/Dockerfile
           push: true
-          tags: |
-            ${{ env.REGISTRY }}/anneal-core:${{ steps.tag.outputs.tag }}
-            ${{ env.REGISTRY }}/anneal-core:latest
+          tags: ${{ env.REGISTRY }}/anneal-core:${{ steps.tag.outputs.tag }}
 
       - name: Build and push worker
         uses: docker/build-push-action@v6
@@ -62,9 +59,7 @@ jobs:
           context: .
           file: worker/Dockerfile
           push: true
-          tags: |
-            ${{ env.REGISTRY }}/anneal-worker:${{ steps.tag.outputs.tag }}
-            ${{ env.REGISTRY }}/anneal-worker:latest
+          tags: ${{ env.REGISTRY }}/anneal-worker:${{ steps.tag.outputs.tag }}
 
       - name: Build and push dashboard
         uses: docker/build-push-action@v6
@@ -72,9 +67,7 @@ jobs:
           context: dashboard
           file: dashboard/Dockerfile
           push: true
-          tags: |
-            ${{ env.REGISTRY }}/anneal-dashboard:${{ steps.tag.outputs.tag }}
-            ${{ env.REGISTRY }}/anneal-dashboard:latest
+          tags: ${{ env.REGISTRY }}/anneal-dashboard:${{ steps.tag.outputs.tag }}
 
   # ── Deploy dev (auto on push to main) ──────────────────────────────────────
 
@@ -82,7 +75,7 @@ jobs:
     name: Deploy → dev
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.event.inputs.environment == 'dev'
     environment: dev
     concurrency:
       group: deploy-dev
@@ -114,49 +107,25 @@ jobs:
           TF_VAR_clickhouse_token_key: ${{ secrets.CLICKHOUSE_TOKEN_KEY }}
           TF_VAR_clickhouse_token_secret: ${{ secrets.CLICKHOUSE_TOKEN_SECRET }}
           TF_VAR_auth_secret: ${{ secrets.AUTH_SECRET }}
+          TF_VAR_api_key: ${{ secrets.ANNEAL_API_KEY }}
+          TF_VAR_dashboard_email: ${{ secrets.ANNEAL_DASHBOARD_EMAIL }}
+          TF_VAR_dashboard_password: ${{ secrets.ANNEAL_DASHBOARD_PASSWORD }}
           TF_VAR_anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           TF_VAR_openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           TF_VAR_github_app_id: ${{ secrets.GITHUB_APP_ID }}
+          TF_VAR_github_app_install_url: ${{ vars.ANNEAL_GITHUB_APP_INSTALL_URL }}
           TF_VAR_github_app_private_key: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
-          TF_VAR_github_webhook_secret: ${{ secrets.GITHUB_WEBHOOK_SECRET }}
+          TF_VAR_customers_json: ${{ secrets.ANNEAL_CUSTOMERS_JSON }}
+          TF_VAR_agent_runner_url: ${{ secrets.ANNEAL_AGENT_RUNNER_URL }}
+          TF_VAR_agent_runner_api_key: ${{ secrets.ANNEAL_AGENT_RUNNER_API_KEY }}
+          TF_VAR_waitlist_webhook_url: ${{ secrets.ANNEAL_WAITLIST_WEBHOOK_URL }}
+          TF_VAR_waitlist_webhook_token: ${{ secrets.ANNEAL_WAITLIST_WEBHOOK_TOKEN }}
+          TF_VAR_image_tag: ${{ needs.build.outputs.tag }}
         run: |
           terraform apply \
             -var-file=environments/dev.tfvars \
             -auto-approve \
             -input=false
-
-      - name: Run migrations (PostgreSQL)
-        env:
-          POSTGRES_URL: ${{ steps.get-pg-url.outputs.value }}
-        run: |
-          PG_URL=$(az keyvault secret show \
-            --vault-name "kv-anneal-dev" \
-            --name "postgres-url" \
-            --query "value" -o tsv)
-          docker run --rm \
-            -e PGPASSWORD="" \
-            postgres:16 \
-            psql "$PG_URL" \
-            -f /dev/stdin < core/src/core/db/postgres.sql
-
-      - name: Run migrations (ClickHouse)
-        run: |
-          CH_URL=$(az keyvault secret show \
-            --vault-name "kv-anneal-dev" \
-            --name "clickhouse-url" \
-            --query "value" -o tsv)
-          CH_PASS=$(az keyvault secret show \
-            --vault-name "kv-anneal-dev" \
-            --name "clickhouse-password" \
-            --query "value" -o tsv)
-          docker run --rm clickhouse/clickhouse-client:24 \
-            --host "$(echo "$CH_URL" | sed 's|https://||;s|:.*||')" \
-            --port 8443 \
-            --secure \
-            --user default \
-            --password "$CH_PASS" \
-            --database anneal \
-            --query "$(cat core/src/core/db/clickhouse.sql)"
 
       - name: Smoke test
         run: |
@@ -203,45 +172,25 @@ jobs:
           TF_VAR_clickhouse_token_key: ${{ secrets.CLICKHOUSE_TOKEN_KEY }}
           TF_VAR_clickhouse_token_secret: ${{ secrets.CLICKHOUSE_TOKEN_SECRET }}
           TF_VAR_auth_secret: ${{ secrets.AUTH_SECRET }}
+          TF_VAR_api_key: ${{ secrets.ANNEAL_API_KEY }}
+          TF_VAR_dashboard_email: ${{ secrets.ANNEAL_DASHBOARD_EMAIL }}
+          TF_VAR_dashboard_password: ${{ secrets.ANNEAL_DASHBOARD_PASSWORD }}
           TF_VAR_anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           TF_VAR_openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           TF_VAR_github_app_id: ${{ secrets.GITHUB_APP_ID }}
+          TF_VAR_github_app_install_url: ${{ vars.ANNEAL_GITHUB_APP_INSTALL_URL }}
           TF_VAR_github_app_private_key: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
-          TF_VAR_github_webhook_secret: ${{ secrets.GITHUB_WEBHOOK_SECRET }}
+          TF_VAR_customers_json: ${{ secrets.ANNEAL_CUSTOMERS_JSON }}
+          TF_VAR_agent_runner_url: ${{ secrets.ANNEAL_AGENT_RUNNER_URL }}
+          TF_VAR_agent_runner_api_key: ${{ secrets.ANNEAL_AGENT_RUNNER_API_KEY }}
+          TF_VAR_waitlist_webhook_url: ${{ secrets.ANNEAL_WAITLIST_WEBHOOK_URL }}
+          TF_VAR_waitlist_webhook_token: ${{ secrets.ANNEAL_WAITLIST_WEBHOOK_TOKEN }}
+          TF_VAR_image_tag: ${{ needs.build.outputs.tag }}
         run: |
           terraform apply \
             -var-file=environments/prod.tfvars \
             -auto-approve \
             -input=false
-
-      - name: Run migrations (PostgreSQL)
-        run: |
-          PG_URL=$(az keyvault secret show \
-            --vault-name "kv-anneal-prod" \
-            --name "postgres-url" \
-            --query "value" -o tsv)
-          docker run --rm postgres:16 \
-            psql "$PG_URL" \
-            -f /dev/stdin < core/src/core/db/postgres.sql
-
-      - name: Run migrations (ClickHouse)
-        run: |
-          CH_URL=$(az keyvault secret show \
-            --vault-name "kv-anneal-prod" \
-            --name "clickhouse-url" \
-            --query "value" -o tsv)
-          CH_PASS=$(az keyvault secret show \
-            --vault-name "kv-anneal-prod" \
-            --name "clickhouse-password" \
-            --query "value" -o tsv)
-          docker run --rm clickhouse/clickhouse-client:24 \
-            --host "$(echo "$CH_URL" | sed 's|https://||;s|:.*||')" \
-            --port 8443 \
-            --secure \
-            --user default \
-            --password "$CH_PASS" \
-            --database anneal \
-            --query "$(cat core/src/core/db/clickhouse.sql)"
 
       - name: Smoke test
         run: |

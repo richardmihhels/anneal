@@ -114,8 +114,7 @@ class FakeGitHubGateway:
 class GitHubAppClient:
     """Real GitHub gateway authenticated as a GitHub App installation.
 
-    Reads GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY from the environment if not
-    passed explicitly. The App must be installed on every target repo.
+    The App must be installed on every target repository.
 
     Setup: https://docs.github.com/en/apps/creating-github-apps/about-creating-github-apps
     """

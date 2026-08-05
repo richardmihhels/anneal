@@ -15,6 +15,8 @@ from core.optimizer.mutator import MUTATION_BUDGET, PromptMutator
 
 logger = logging.getLogger(__name__)
 
+_FAMILY_WISE_ALPHA = 0.05
+
 
 @dataclass(frozen=True)
 class OptimizationResult:
@@ -28,6 +30,7 @@ def _build_rationale(
     baseline_prompt: str,
     candidate_prompt: str,
     report: EvalReport,
+    corrected_alpha: float,
 ) -> str:
     excerpt = failure_contexts[0][:300].replace("\n", " ") if failure_contexts else "(no example available)"
     sig = report.significance
@@ -46,6 +49,7 @@ def _build_rationale(
         f"  Candidate score: {report.candidate_score:.3f}\n"
         f"  Improvement    : +{sig.delta:.3f}\n"
         f"  p-value        : {sig.p_value:.4f}\n"
+        f"  Corrected gate : p < {corrected_alpha:.4f}\n"
         f"  Judge agreement: {report.judge_agreement_rate:.1%}\n"
     )
 
@@ -86,6 +90,11 @@ class Optimizer:
         trace_by_id = {t.id: t for t in traces}
         proposed_changes: list[ProposedChange] = []
         eval_results: list[EvalResult] = []
+        # The same holdout is queried for multiple candidates. Use the maximum
+        # planned comparison count so candidate selection does not inflate the
+        # chance of publishing a false positive.
+        comparison_count = max(1, len(clusters) * max(1, self._budget))
+        corrected_alpha = _FAMILY_WISE_ALPHA / comparison_count
 
         for cluster in clusters:
             failure_contexts = [
@@ -120,7 +129,11 @@ class Optimizer:
                     report.significance.passed,
                 )
 
-                if report.passed and report.significance.delta > best_delta:
+                if (
+                    report.passed
+                    and report.significance.p_value < corrected_alpha
+                    and report.significance.delta > best_delta
+                ):
                     change_id = str(uuid.uuid4())
                     eval_result = EvalResult(
                         proposed_change_id=change_id,
@@ -139,7 +152,12 @@ class Optimizer:
                         before=baseline.prompt,
                         after=candidate_prompt,
                         rationale=_build_rationale(
-                            cluster, failure_contexts, baseline.prompt, candidate_prompt, report
+                            cluster,
+                            failure_contexts,
+                            baseline.prompt,
+                            candidate_prompt,
+                            report,
+                            corrected_alpha,
                         ),
                         eval_result_id=eval_result.id,
                     )

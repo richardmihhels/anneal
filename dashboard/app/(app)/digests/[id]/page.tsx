@@ -18,7 +18,7 @@ interface PageProps {
 export default async function DigestPage({ params }: PageProps) {
   const session = await requireSession();
   const { id } = await params;
-  const digest = getWeeklyDigest(id, session.organizationId);
+  const digest = await getWeeklyDigest(id, session.organizationId);
   if (!digest) notFound();
 
   return (

@@ -488,8 +488,10 @@ def generate_trace(
     rng = random.Random(seed)
     customer = rng.choice(_CUSTOMERS)
     trace_id = str(uuid.uuid4())
-    t0 = timestamp if timestamp is not None else (
-        datetime.now(UTC).replace(microsecond=0) - timedelta(hours=rng.randint(1, 48))
+    t0 = (
+        timestamp
+        if timestamp is not None
+        else (datetime.now(UTC).replace(microsecond=0) - timedelta(hours=rng.randint(1, 48)))
     )
 
     spans = _GENERATORS[category](trace_id, t0, customer)

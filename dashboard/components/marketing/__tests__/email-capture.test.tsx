@@ -1,21 +1,29 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { EmailCapture } from "../email-capture";
 
 describe("EmailCapture", () => {
+  beforeEach(() => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: true });
+  });
+
   it("renders the email input and submit button", () => {
     render(<EmailCapture />);
     expect(screen.getByRole("textbox", { name: /work email/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /request access/i })).toBeInTheDocument();
   });
 
-  it("shows success message on valid email submission", () => {
+  it("shows success message on valid email submission", async () => {
     render(<EmailCapture />);
     fireEvent.change(screen.getByRole("textbox"), {
       target: { value: "eng@example.com" },
     });
     fireEvent.submit(screen.getByRole("form", { name: /beta waitlist/i }));
-    expect(screen.getByText(/on the list/i)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/on the list/i)).toBeInTheDocument());
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(global.fetch).toHaveBeenCalledWith(
+      "/api/waitlist",
+      expect.objectContaining({ method: "POST" }),
+    );
   });
 
   it("shows error on empty submission", () => {

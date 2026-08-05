@@ -6,7 +6,7 @@ import logging
 import os
 import smtplib
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import timedelta
 from email.mime.text import MIMEText
 from typing import Protocol, runtime_checkable
 
@@ -91,9 +91,16 @@ def compose_weekly_digest(
     week_end = run.created_at
     week_start = week_end - timedelta(days=7)
     shipped = len(prs) > 0
+    published_change_ids = {pr.change_id for pr in prs}
+    published_changes = [change for change in proposed_changes if change.id in published_change_ids]
+    health_evals = (
+        [result for result in eval_results if result.proposed_change_id in published_change_ids]
+        if shipped
+        else eval_results
+    )
     clusters_sorted = sorted(clusters, key=lambda c: c.size, reverse=True)
-    health_direction = _health_direction(eval_results, previous_eval_results)
-    summary = _summary(run, events, proposed_changes, eval_results, prs)
+    health_direction = _health_direction(health_evals, previous_eval_results)
+    summary = _summary(run, events, published_changes, eval_results, prs)
     body = _render_body(
         run=run,
         summary=summary,
@@ -129,14 +136,16 @@ def _summary(
 ) -> str:
     if prs:
         changed = _change_summary(proposed_changes)
-        return f"Anneal shipped {len(prs)} PR(s) this week. {changed}"
+        noun = "PR" if len(prs) == 1 else "PRs"
+        return f"Anneal shipped {len(prs)} {noun} this week. {changed}"
 
     holdout_size = _holdout_size(events)
     rejected = _rejected_count(events)
     if rejected > 0:
         holdout = f" on holdout n={holdout_size}" if holdout_size is not None else " on the holdout"
+        noun = "candidate pattern" if rejected == 1 else "candidate patterns"
         return (
-            f"No PR shipped this week. Anneal evaluated {rejected} candidate pattern(s){holdout}; "
+            f"No PR shipped this week. Anneal evaluated {rejected} {noun}{holdout}; "
             "none beat the current baseline with statistical confidence, so the safe outcome was to hold."
         )
 

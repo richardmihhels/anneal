@@ -33,10 +33,7 @@ def _format_email_body(alarm: Alarm) -> str:
 
 
 def _format_subject(alarm: Alarm) -> str:
-    return (
-        f"[Anneal] {alarm.category} spike on {alarm.agent_id} — "
-        f"{alarm.baseline_rate:.1%} → {alarm.current_rate:.1%}"
-    )
+    return f"[Anneal] {alarm.category} spike on {alarm.agent_id} — {alarm.baseline_rate:.1%} → {alarm.current_rate:.1%}"
 
 
 @runtime_checkable
@@ -58,6 +55,13 @@ class FakeEmailNotifier:
                 "alarm_id": alarm.id,
             }
         )
+
+
+class LoggingAlarmNotifier:
+    """Log detected alarms when SMTP delivery is not configured."""
+
+    def send(self, alarm: Alarm) -> None:
+        logger.warning("%s", _format_subject(alarm))
 
 
 class SMTPEmailNotifier:

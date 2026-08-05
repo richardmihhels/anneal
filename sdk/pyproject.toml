@@ -5,15 +5,24 @@ description = "Anneal trace streaming SDK for LangGraph and LangChain agents"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = ["httpx>=0.27", "pydantic>=2.7"]
-authors = [{ name = "Anneal" }]
+authors = [{ name = "Anneal contributors" }]
+keywords = ["ai-agents", "langchain", "langgraph", "observability", "evaluation"]
 classifiers = [
+    "Development Status :: 4 - Beta",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
     "Typing :: Typed",
 ]
 
+[project.urls]
+Homepage = "https://github.com/richardmihhels/anneal"
+Documentation = "https://github.com/richardmihhels/anneal/tree/main/docs"
+Issues = "https://github.com/richardmihhels/anneal/issues"
+Changelog = "https://github.com/richardmihhels/anneal/blob/main/CHANGELOG.md"
+
 [project.optional-dependencies]
-langchain = ["langchain-core>=0.3"]
+langchain = ["langchain-core>=1.4,<2"]
 
 [build-system]
 requires = ["hatchling"]

@@ -5,7 +5,14 @@ import logging
 from datetime import datetime
 from typing import Any, Protocol, runtime_checkable
 
-from shared.models import Alarm, EvalResult, OptimizationRun, WeeklyDigest
+from shared.models import (
+    Alarm,
+    EvalResult,
+    FailureCluster,
+    OptimizationRun,
+    ProposedChange,
+    WeeklyDigest,
+)
 
 from worker.models import RunEvent
 
@@ -38,6 +45,31 @@ CREATE TABLE IF NOT EXISTS run_events (
 );
 
 CREATE INDEX IF NOT EXISTS run_events_run_id_ts ON run_events(run_id, ts);
+
+CREATE TABLE IF NOT EXISTS failure_clusters (
+    id                      TEXT PRIMARY KEY,
+    optimization_run_id     TEXT NOT NULL REFERENCES optimization_runs(id) ON DELETE CASCADE,
+    label                   TEXT NOT NULL,
+    description             TEXT NOT NULL,
+    trace_ids               JSONB NOT NULL DEFAULT '[]',
+    size                    INT NOT NULL,
+    created_at              TIMESTAMPTZ NOT NULL,
+    representative_trace_id TEXT
+);
+
+CREATE INDEX IF NOT EXISTS failure_clusters_run_idx ON failure_clusters (optimization_run_id);
+
+CREATE TABLE IF NOT EXISTS proposed_changes (
+    id                  TEXT PRIMARY KEY,
+    optimization_run_id TEXT NOT NULL REFERENCES optimization_runs(id) ON DELETE CASCADE,
+    target              TEXT NOT NULL,
+    before              TEXT NOT NULL,
+    after               TEXT NOT NULL,
+    rationale           TEXT NOT NULL,
+    eval_result_id      TEXT
+);
+
+CREATE INDEX IF NOT EXISTS proposed_changes_run_idx ON proposed_changes (optimization_run_id);
 
 CREATE TABLE IF NOT EXISTS eval_results (
     id                   TEXT PRIMARY KEY,
@@ -102,13 +134,17 @@ class RunStore(Protocol):
     async def log_event(self, event: RunEvent) -> None: ...
     async def get_run(self, run_id: str) -> OptimizationRun | None: ...
     async def list_events(self, run_id: str) -> list[RunEvent]: ...
+    async def save_clusters(self, run_id: str, clusters: list[FailureCluster]) -> None: ...
+    async def save_proposed_changes(self, changes: list[ProposedChange]) -> None: ...
     async def save_eval_result(self, result: EvalResult) -> None: ...
     async def list_eval_results(
-        self, agent_id: str, before: datetime, limit: int
+        self,
+        organization_id: str,
+        agent_id: str,
+        before: datetime,
+        limit: int,
     ) -> list[EvalResult]: ...
-    async def list_alarms(
-        self, organization_id: str, agent_id: str, start: datetime, end: datetime
-    ) -> list[Alarm]: ...
+    async def list_alarms(self, organization_id: str, agent_id: str, start: datetime, end: datetime) -> list[Alarm]: ...
     async def save_weekly_digest(self, digest: WeeklyDigest) -> None: ...
     async def get_weekly_digest_for_run(self, run_id: str) -> WeeklyDigest | None: ...
 
@@ -119,6 +155,8 @@ class FakeRunStore:
     def __init__(self) -> None:
         self._runs: dict[str, OptimizationRun] = {}
         self._events: list[RunEvent] = []
+        self._clusters: list[FailureCluster] = []
+        self._proposed_changes: list[ProposedChange] = []
         self._eval_results: list[EvalResult] = []
         self._alarms: list[Alarm] = []
         self._weekly_digests: list[WeeklyDigest] = []
@@ -145,16 +183,28 @@ class FakeRunStore:
     async def list_events(self, run_id: str) -> list[RunEvent]:
         return [e for e in self._events if e.run_id == run_id]
 
+    async def save_clusters(self, run_id: str, clusters: list[FailureCluster]) -> None:
+        existing = {cluster.id for cluster in self._clusters}
+        self._clusters.extend(cluster for cluster in clusters if cluster.id not in existing)
+
+    async def save_proposed_changes(self, changes: list[ProposedChange]) -> None:
+        existing = {change.id for change in self._proposed_changes}
+        self._proposed_changes.extend(change for change in changes if change.id not in existing)
+
     async def save_eval_result(self, result: EvalResult) -> None:
         self._eval_results.append(result)
 
     async def list_eval_results(
-        self, agent_id: str, before: datetime, limit: int
+        self,
+        organization_id: str,
+        agent_id: str,
+        before: datetime,
+        limit: int,
     ) -> list[EvalResult]:
         run_ids = {
             run.id
             for run in self._runs.values()
-            if run.agent_id == agent_id and run.created_at < before
+            if run.organization_id == organization_id and run.agent_id == agent_id and run.created_at < before
         }
         return sorted(
             [er for er in self._eval_results if er.optimization_run_id in run_ids],
@@ -162,9 +212,7 @@ class FakeRunStore:
             reverse=True,
         )[:limit]
 
-    async def list_alarms(
-        self, organization_id: str, agent_id: str, start: datetime, end: datetime
-    ) -> list[Alarm]:
+    async def list_alarms(self, organization_id: str, agent_id: str, start: datetime, end: datetime) -> list[Alarm]:
         return [
             alarm
             for alarm in self._alarms
@@ -196,6 +244,14 @@ class FakeRunStore:
         return list(self._eval_results)
 
     @property
+    def all_clusters(self) -> list[FailureCluster]:
+        return list(self._clusters)
+
+    @property
+    def all_proposed_changes(self) -> list[ProposedChange]:
+        return list(self._proposed_changes)
+
+    @property
     def all_weekly_digests(self) -> list[WeeklyDigest]:
         return list(self._weekly_digests)
 
@@ -216,6 +272,11 @@ class PostgresRunStore:
 
             self._pool = await asyncpg.create_pool(self._dsn)
         return self._pool
+
+    async def close(self) -> None:
+        if self._pool is not None:
+            await self._pool.close()
+            self._pool = None
 
     async def migrate(self) -> None:
         """Create tables if they do not exist. Safe to call on every startup."""
@@ -314,6 +375,60 @@ class PostgresRunStore:
             for row in rows
         ]
 
+    async def save_clusters(self, run_id: str, clusters: list[FailureCluster]) -> None:
+        if not clusters:
+            return
+        pool = await self._get_pool()
+        async with pool.acquire() as conn:
+            await conn.executemany(
+                """
+                INSERT INTO failure_clusters
+                    (id, optimization_run_id, label, description, trace_ids, size,
+                     created_at, representative_trace_id)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                ON CONFLICT (id) DO NOTHING
+                """,
+                [
+                    (
+                        cluster.id,
+                        run_id,
+                        cluster.label,
+                        cluster.description,
+                        json.dumps(cluster.trace_ids),
+                        cluster.size,
+                        cluster.created_at,
+                        cluster.representative_trace_id,
+                    )
+                    for cluster in clusters
+                ],
+            )
+
+    async def save_proposed_changes(self, changes: list[ProposedChange]) -> None:
+        if not changes:
+            return
+        pool = await self._get_pool()
+        async with pool.acquire() as conn:
+            await conn.executemany(
+                """
+                INSERT INTO proposed_changes
+                    (id, optimization_run_id, target, before, after, rationale, eval_result_id)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                ON CONFLICT (id) DO NOTHING
+                """,
+                [
+                    (
+                        change.id,
+                        change.optimization_run_id,
+                        change.target,
+                        change.before,
+                        change.after,
+                        change.rationale,
+                        change.eval_result_id,
+                    )
+                    for change in changes
+                ],
+            )
+
     async def save_eval_result(self, result: EvalResult) -> None:
         pool = await self._get_pool()
         async with pool.acquire() as conn:
@@ -340,7 +455,11 @@ class PostgresRunStore:
             )
 
     async def list_eval_results(
-        self, agent_id: str, before: datetime, limit: int
+        self,
+        organization_id: str,
+        agent_id: str,
+        before: datetime,
+        limit: int,
     ) -> list[EvalResult]:
         pool = await self._get_pool()
         async with pool.acquire() as conn:
@@ -349,11 +468,13 @@ class PostgresRunStore:
                 SELECT er.*
                   FROM eval_results er
                   JOIN optimization_runs r ON r.id = er.optimization_run_id
-                 WHERE r.agent_id = $1
-                   AND r.created_at < $2
+                 WHERE r.organization_id = $1
+                   AND r.agent_id = $2
+                   AND r.created_at < $3
                  ORDER BY er.run_at DESC
-                 LIMIT $3
+                 LIMIT $4
                 """,
+                organization_id,
                 agent_id,
                 before,
                 limit,
@@ -375,9 +496,7 @@ class PostgresRunStore:
             for row in rows
         ]
 
-    async def list_alarms(
-        self, organization_id: str, agent_id: str, start: datetime, end: datetime
-    ) -> list[Alarm]:
+    async def list_alarms(self, organization_id: str, agent_id: str, start: datetime, end: datetime) -> list[Alarm]:
         pool = await self._get_pool()
         async with pool.acquire() as conn:
             rows = await conn.fetch(

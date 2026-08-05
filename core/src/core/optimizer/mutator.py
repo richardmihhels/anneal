@@ -45,6 +45,13 @@ class GEPAMutator:
     def __init__(self, model: str = "claude-haiku-4-5-20251001") -> None:
         import dspy  # type: ignore[import-untyped]
 
+        # DSPy enables diskcache by default. diskcache 5.6.3 has no patched
+        # release for PYSEC-2026-2447, which can deserialize a malicious cache
+        # entry when another process can write to its cache directory. Anneal's
+        # worker does not need persistence between optimization runs, so retain
+        # in-memory caching and remove the vulnerable disk boundary entirely.
+        dspy.configure_cache(enable_disk_cache=False, enable_memory_cache=True)
+
         class _MutationSignature(dspy.Signature):  # type: ignore[misc]
             """Improve an AI agent's system prompt to fix a specific failure pattern.
 

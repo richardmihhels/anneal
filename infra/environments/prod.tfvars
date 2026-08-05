@@ -6,15 +6,15 @@ postgres_sku        = "B_Standard_B2ms"
 postgres_storage_mb = 65536
 
 # Container Apps — keep at least 1 replica to avoid cold starts
-core_cpu           = "1.0"
-core_memory        = "2Gi"
-core_min_replicas  = 1
-core_max_replicas  = 3
+core_cpu          = "1.0"
+core_memory       = "2Gi"
+core_min_replicas = 1
+core_max_replicas = 3
 
-dashboard_cpu           = "0.5"
-dashboard_memory        = "1Gi"
-dashboard_min_replicas  = 1
-dashboard_max_replicas  = 2
+dashboard_cpu          = "0.5"
+dashboard_memory       = "1Gi"
+dashboard_min_replicas = 1
+dashboard_max_replicas = 2
 
 # ClickHouse Cloud — Production tier (always-on)
 clickhouse_tier = "production"

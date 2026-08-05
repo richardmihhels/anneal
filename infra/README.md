@@ -1,171 +1,142 @@
-# Anneal Infrastructure
+# Anneal infrastructure
 
-Azure deployment via Terraform. Three Container Apps (core API, dashboard, worker job)
-backed by Azure Database for PostgreSQL and ClickHouse Cloud.
+Terraform deploys Anneal to Azure Container Apps with:
 
-## Architecture decisions
+- A public FastAPI core service and Next.js dashboard.
+- A Monday 02:00 UTC optimization job.
+- An hourly rolling-window regression-alarm job.
+- Azure Database for PostgreSQL, ClickHouse Cloud, ACR, Key Vault, Log Analytics, and Application Insights.
 
-**Container Apps over AKS** — solo operator, ~60% lower cost at launch scale, no
-Kubernetes operational surface. Built-in KEDA scaling, cron job support, and managed
-ingress handle everything Anneal needs.
-
-**ClickHouse Cloud over self-hosted** — removes backup, upgrade, and HA burden. Dev
-tier idles to zero; cost delta vs a self-managed container with persistent disk is
-small at launch volume. Production tier stays always-on.
+Application startup applies idempotent Postgres and ClickHouse schema changes.
+Production services fail closed when required databases, authentication, or
+worker integrations are missing.
 
 ## Prerequisites
 
-- Azure CLI (`az`) logged in: `az login`
-- Terraform >= 1.9: `brew install terraform`
-- A ClickHouse Cloud account with an API key pair
-- A GitHub App registered for PR publishing
+- Azure CLI authenticated with `az login`.
+- Terraform 1.9 or newer.
+- Docker.
+- A ClickHouse Cloud organization and API token.
+- A GitHub App installed on each target repository, with Contents read/write and Pull requests write access.
+- A customer-owned agent replay endpoint for held-out evaluations.
 
-## First-time setup
+## 1. Bootstrap Terraform state
 
-### 1. Bootstrap remote state
+From the repository root:
 
-Run once to create the Azure Storage Account that holds Terraform state:
-
-```bash
+```sh
 bash infra/scripts/bootstrap-state.sh
 ```
 
-This creates `rg-anneal-tfstate` and storage account `stannealtfstate` with
-separate containers for dev and prod state.
+The script creates separate `dev` and `prod` state containers. Review its
+resource names before running it in an existing Azure subscription.
 
-### 2. Configure secrets
+## 2. Supply variables
 
-All secrets are passed as environment variables — never stored in `.tfvars` files.
+Secret values must come from `TF_VAR_*` environment variables locally or
+GitHub environment secrets in CI. Do not put them in `.tfvars` files.
 
-```bash
+```sh
+export TF_VAR_clickhouse_org_id=...
+export TF_VAR_clickhouse_token_key=...
+export TF_VAR_clickhouse_token_secret=...
 export TF_VAR_auth_secret="$(openssl rand -hex 32)"
-export TF_VAR_clickhouse_org_id="<your ClickHouse Cloud org ID>"
-export TF_VAR_clickhouse_token_key="<key>"
-export TF_VAR_clickhouse_token_secret="<secret>"
-export TF_VAR_anthropic_api_key="sk-ant-..."
-export TF_VAR_github_app_id="<GitHub App ID>"
-export TF_VAR_github_app_private_key="$(cat path/to/private-key.pem)"
-export TF_VAR_github_webhook_secret="$(openssl rand -hex 32)"
+export TF_VAR_api_key="$(openssl rand -hex 32)"
+export TF_VAR_dashboard_email=lead@example.com
+export TF_VAR_dashboard_password=...
+export TF_VAR_anthropic_api_key=...
+export TF_VAR_openai_api_key=...
+export TF_VAR_github_app_id=...
+export TF_VAR_github_app_private_key="$(<path/to/anneal-app.pem)"
+export TF_VAR_customers_json="$(jq -c . customers.json)"
+export TF_VAR_agent_runner_url=https://agent.example.com/internal/anneal-eval
+export TF_VAR_agent_runner_api_key=...
+export TF_VAR_image_tag=<git-sha>
 ```
 
-In CI, store these as GitHub Actions secrets (Settings → Secrets → Actions).
+`customers.json` can be a single object, a list, or an object with a
+`customers` list. Each entry has the same fields as `anneal.example.yml`.
 
-### 3. Deploy dev
+Optional waitlist delivery uses `TF_VAR_waitlist_webhook_url` and
+`TF_VAR_waitlist_webhook_token`. With no webhook, the production waitlist route
+returns `503` instead of pretending that a signup was stored.
 
-```bash
-make deploy-dev
-```
+## 3. Bootstrap the registry on a new environment
 
-Or step by step:
+The deploy workflow pushes images before the full Terraform apply, so a brand
+new environment needs its registry once. Initialize the desired backend and
+create only the resource group and ACR:
 
-```bash
+```sh
 make tf-init-dev
-cd infra
-terraform plan  -var-file=environments/dev.tfvars
-terraform apply -var-file=environments/dev.tfvars
+terraform -chdir=infra apply \
+  -var-file=environments/dev.tfvars \
+  -target=azurerm_resource_group.main \
+  -target=azurerm_container_registry.main
 ```
 
-After apply, run migrations:
+Record the `registry_server` output and the registry name as the corresponding
+GitHub environment secrets. This targeted apply is a one-time bootstrap; use
+normal full plans afterward.
 
-```bash
-PG_URL=$(terraform output -raw postgres_fqdn)
-psql "postgresql://anneal:<password>@$PG_URL:5432/anneal?sslmode=require" \
-  -f ../core/src/core/db/postgres.sql
+## 4. Plan and deploy
+
+Local development plan:
+
+```sh
+make tf-init-dev
+terraform -chdir=infra fmt -check -recursive
+terraform -chdir=infra validate
+terraform -chdir=infra plan -var-file=environments/dev.tfvars
 ```
 
-The ClickHouse migration runs via the same SQL file against ClickHouse Cloud.
+The checked-in `Deploy` workflow is manual for both environments. Choose
+`dev` or `prod`; it builds immutable SHA-tagged images, pushes them to ACR,
+applies Terraform, and smoke-tests both public health routes. Protect the
+GitHub `prod` environment with required reviewers.
 
-### 4. Deploy prod
+To apply locally after pushing the selected image tag:
 
-Prod deployment is gated on manual approval in GitHub Actions:
-
-1. Go to Actions → Deploy → Run workflow → select `prod`
-2. The workflow pauses at the `prod` environment gate and notifies required reviewers
-3. A reviewer approves; deployment proceeds
-
-Or from the command line (CI credentials required):
-
-```bash
-make tf-init-prod
-cd infra && terraform apply -var-file=environments/prod.tfvars
+```sh
+terraform -chdir=infra apply -var-file=environments/dev.tfvars
 ```
 
-## Switching environments
+## GitHub environment secrets
 
-Each environment has its own Terraform state backend. Switch by re-initialising:
+Create `dev` and `prod` GitHub environments and provide:
 
-```bash
-make tf-init-dev   # point at dev state
-make tf-init-prod  # point at prod state
-```
+| Secret | Purpose |
+| --- | --- |
+| `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` | Azure OIDC login |
+| `ACR_NAME`, `ACR_LOGIN_SERVER` | Image push target |
+| `CLICKHOUSE_ORG_ID`, `CLICKHOUSE_TOKEN_KEY`, `CLICKHOUSE_TOKEN_SECRET` | ClickHouse provider |
+| `AUTH_SECRET` | Dashboard session signing |
+| `ANNEAL_API_KEY` | Core API and dashboard service authentication |
+| `ANNEAL_DASHBOARD_EMAIL`, `ANNEAL_DASHBOARD_PASSWORD` | Self-hosted dashboard login |
+| `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` | Judge, mutation, labels, and embeddings |
+| `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY` | Gated PR publishing |
+| `ANNEAL_CUSTOMERS_JSON` | Validated customer/agent configuration |
+| `ANNEAL_AGENT_RUNNER_URL`, `ANNEAL_AGENT_RUNNER_API_KEY` | Isolated holdout replay |
+| `ANNEAL_WAITLIST_WEBHOOK_URL`, `ANNEAL_WAITLIST_WEBHOOK_TOKEN` | Optional waitlist delivery |
 
-## Rolling back
+The Azure service principal should use a GitHub OIDC federated identity. It
+needs enough subscription scope to manage these resources and push images;
+application identities receive only ACR pull and Key Vault secret-read roles.
 
-Terraform manages infrastructure state, not application code. To roll back a bad
-image deploy without touching infrastructure:
+## Operations
 
-```bash
-# Point the Container App to the previous image tag
-az containerapp update \
-  --name ca-anneal-dev-core \
-  --resource-group rg-anneal-dev \
-  --image <ACR_SERVER>/anneal-core:<previous-tag>
-```
+Run the post-deploy check manually with Terraform outputs:
 
-To roll back infrastructure changes:
-```bash
-# Restore previous state snapshot from Azure Storage, then re-apply
-terraform apply -var-file=environments/dev.tfvars -target=<resource>
-```
-
-For a complete environment teardown:
-```bash
-terraform destroy -var-file=environments/dev.tfvars
-```
-
-## Smoke test
-
-```bash
-CORE_URL=$(cd infra && terraform output -raw core_url) \
-DASHBOARD_URL=$(cd infra && terraform output -raw dashboard_url) \
+```sh
+CORE_URL="$(terraform -chdir=infra output -raw core_url)" \
+DASHBOARD_URL="$(terraform -chdir=infra output -raw dashboard_url)" \
 bash infra/scripts/smoke-test.sh
 ```
 
-## Monthly cost estimate (dev, low volume, westeurope)
+Roll back application code by setting `image_tag` to a previously pushed SHA
+and applying Terraform. Review a destroy plan carefully before removing an
+environment; PostgreSQL and Terraform state contain durable data.
 
-| Resource | SKU | ~EUR/mo |
-|---|---|---|
-| PostgreSQL Flexible Server | B_Standard_B1ms (1 vCPU, 2 GB) | €15 |
-| ClickHouse Cloud | Development (idles to zero) | €47 |
-| Container Apps (core + dashboard) | Scale-to-zero, ~10h/day active | €8 |
-| Container Apps Job (worker) | 1×/week, 1 CPU-hr | <€1 |
-| Container Registry | Basic | €5 |
-| Log Analytics | <1 GB/mo ingestion | €3 |
-| Key Vault Standard | <10k ops/mo | <€1 |
-| **Total** | | **~€79–100** |
-
-Prod estimate: ~€150–180/mo with always-on replicas, B2ms postgres, and
-ClickHouse Cloud Production tier.
-
-## GitHub Actions secrets required
-
-| Secret | Description |
-|---|---|
-| `AZURE_CLIENT_ID` | Service principal client ID (OIDC) |
-| `AZURE_TENANT_ID` | Azure tenant ID |
-| `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
-| `ACR_NAME` | Container registry name (e.g. `acrannealprod`) |
-| `ACR_LOGIN_SERVER` | Registry server (e.g. `acrannealprod.azurecr.io`) |
-| `CLICKHOUSE_ORG_ID` | ClickHouse Cloud organisation ID |
-| `CLICKHOUSE_TOKEN_KEY` | ClickHouse Cloud API token key |
-| `CLICKHOUSE_TOKEN_SECRET` | ClickHouse Cloud API token secret |
-| `AUTH_SECRET` | Dashboard auth secret (random 32-byte hex) |
-| `ANTHROPIC_API_KEY` | Anthropic API key for the optimization engine |
-| `OPENAI_API_KEY` | OpenAI API key (optional) |
-| `GITHUB_APP_ID` | GitHub App ID for PR publishing |
-| `GITHUB_APP_PRIVATE_KEY` | GitHub App private key (PEM) |
-| `GITHUB_WEBHOOK_SECRET` | GitHub webhook HMAC secret |
-
-Set `AZURE_CLIENT_ID` via a federated identity credential (OIDC) on a service
-principal with `Contributor` on the subscription and `Key Vault Secrets Officer`
-on both Key Vaults. This avoids storing long-lived credentials in GitHub.
+Cloud prices and ClickHouse tiers change. Use the Azure and ClickHouse pricing
+calculators with the selected environment tfvars before deployment rather than
+relying on a static estimate in this repository.
