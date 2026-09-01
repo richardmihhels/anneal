@@ -1,4 +1,4 @@
-FROM python:3.12-slim AS builder
+FROM python:3.14-slim AS builder
 
 WORKDIR /app
 
@@ -11,7 +11,7 @@ COPY core/ ./core/
 RUN uv sync --frozen --no-dev --no-install-project --package anneal-core && \
     uv sync --frozen --no-dev --package anneal-core
 
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 WORKDIR /app
 
