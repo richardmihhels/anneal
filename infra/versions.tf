@@ -8,7 +8,7 @@ terraform {
     }
     clickhouse = {
       source  = "ClickHouse/clickhouse"
-      version = "~> 1.0"
+      version = "~> 3.25"
     }
     random = {
       source  = "hashicorp/random"
